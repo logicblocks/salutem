@@ -1,0 +1,70 @@
+version: 2.1
+jobs:
+  build:
+    working_directory: ~/source
+    docker:
+      - image: ruby:2.6.0
+    steps:
+      - checkout
+      - run: ./scripts/ci/common/install-openjdk.sh
+      - run: ./scripts/ci/steps/build.sh
+  test:
+    working_directory: ~/source
+    docker:
+      - image: ruby:2.6.0
+    steps:
+      - checkout
+      - run: ./scripts/ci/common/install-openjdk.sh
+      - run: ./scripts/ci/steps/test.sh
+  prerelease:
+    working_directory: ~/source
+    docker:
+      - image: ruby:2.6.0
+    steps:
+      - checkout
+      - run: ./scripts/ci/common/install-openjdk.sh
+      - run: ./scripts/ci/common/install-git-crypt.sh
+      - run: ./scripts/ci/common/install-gpg-key.sh
+      - run: ./scripts/ci/common/configure-git.sh
+      - run: ./scripts/ci/common/configure-clojars.sh
+      - run: ./scripts/ci/steps/prerelease.sh
+  release:
+    working_directory: ~/source
+    docker:
+      - image: ruby:2.6.0
+    steps:
+      - checkout
+      - run: ./scripts/ci/common/install-openjdk.sh
+      - run: ./scripts/ci/common/install-git-crypt.sh
+      - run: ./scripts/ci/common/install-gpg-key.sh
+      - run: ./scripts/ci/common/configure-git.sh
+      - run: ./scripts/ci/common/configure-clojars.sh
+      - run: ./scripts/ci/steps/release.sh
+
+workflows:
+  version: 2
+  pipeline:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
+      - prerelease:
+          requires:
+            - test
+          filters:
+            branches:
+              only: master
+      - hold:
+          type: approval
+          requires:
+            - prerelease
+          filters:
+            branches:
+              only: master
+      - release:
+          requires:
+            - hold
+          filters:
+            branches:
+              only: master
