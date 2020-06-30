@@ -5,7 +5,8 @@
   :license {:name "The MIT License"
             :url  "https://opensource.org/licenses/MIT"}
 
-  :dependencies []
+  :dependencies [[org.clojure/core.async "1.2.603"]
+                 [tick "0.4.26-alpha"]]
 
   :plugins [[lein-cloverage "1.1.2"]
             [lein-shell "0.5.0"]
@@ -21,9 +22,11 @@
   :profiles
   {:shared
    {:dependencies [[org.clojure/clojure "1.10.1"]
+                   [org.clojure/tools.trace "0.7.10"]
 
                    [nrepl "0.7.0"]
 
+                   [tortue/spy "2.0.0"]
                    [eftest "0.5.9"]]}
    :dev
    [:shared {:source-paths ["dev"]
