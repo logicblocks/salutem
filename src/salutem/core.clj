@@ -1,21 +1,7 @@
 (ns salutem.core
   (:require
+   [clojure.core.async :as async]
    [tick.alpha.api :as t]))
-
-(defn check
-  ([name check-fn] (check name check-fn {}))
-  ([name check-fn
-    {:keys [type]
-     :or   {type :cached}}]
-   {:name     name
-    :check-fn check-fn
-    :type     type}))
-
-(defn cached? [check]
-  (= (:type check) :cached))
-
-(defn realtime? [check]
-  (= (:type check) :realtime))
 
 (defn result
   ([status] (result status {}))
@@ -31,6 +17,68 @@
 
 (defn unhealthy? [result]
   (= (:status result) :unhealthy))
+
+(defn check
+  ([name check-fn] (check name check-fn {}))
+  ([name check-fn
+    {:keys [type
+            timeout]
+     :or   {type    :cached
+            timeout 10000}}]
+   {:name     name
+    :check-fn check-fn
+    :type     type
+    :timeout  timeout}))
+
+(defn cached? [check]
+  (= (:type check) :cached))
+
+(defn realtime? [check]
+  (= (:type check) :realtime))
+
+(defn evaluator
+  ([check-channel]
+   (evaluator check-channel (async/chan 1)))
+  ([check-channel result-channel]
+   (async/go
+     (loop []
+       (let [{:keys [check context]
+              :or   {context {}}
+              :as   evaluation} (async/<! check-channel)]
+         (if evaluation
+           (let [{:keys [check-fn timeout]} check]
+             (async/go
+               (let [callback-channel (async/chan)]
+                 (async/thread
+                   (check-fn context
+                     (fn [result]
+                       (async/>!! callback-channel result))))
+                 (async/alt!
+                   callback-channel
+                   ([result]
+                    (async/>! result-channel
+                      {:check check :result result}))
+
+                   (async/timeout timeout)
+                   (async/>! result-channel
+                     {:check check :result (result :unhealthy)})
+
+                   :priority true)
+                 (async/close! callback-channel)))
+             (recur))
+           (async/close! result-channel)))))
+   result-channel))
+
+(defn evaluate
+  ([check] (evaluate check {}))
+  ([check context]
+   (let [check-channel (async/chan 1)
+         result-channel (async/chan 1)]
+     (evaluator check-channel result-channel)
+     (async/put! check-channel {:check check :context context})
+     (let [{:keys [result]} (async/<!! result-channel)]
+       (async/close! check-channel)
+       result))))
 
 (defn empty-registry []
   {:checks         {}
@@ -51,13 +99,6 @@
 (defn check-names [registry]
   (set (keys (:checks registry))))
 
-(defn evaluate-check
-  ([registry name]
-   (evaluate-check registry name {}))
-  ([registry name context]
-   (let [{:keys [check-fn]} (find-check registry name)]
-     (check-fn context))))
-
 (defn resolve-check
   ([registry name]
    (resolve-check registry name {}))
@@ -65,5 +106,5 @@
    (let [check (find-check registry name)
          result (find-cached-result registry name)]
      (if (or (realtime? check) (not result))
-       (evaluate-check registry name context)
+       (evaluate check context)
        result))))
