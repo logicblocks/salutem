@@ -11,6 +11,16 @@
      {:status       status
       :evaluated-at evaluated-at})))
 
+(defn healthy
+  ([] (healthy {}))
+  ([opts]
+   (result :healthy opts)))
+
+(defn unhealthy
+  ([] (unhealthy {}))
+  ([opts]
+   (result :unhealthy opts)))
+
 (defn healthy? [result]
   (= (:status result) :healthy))
 

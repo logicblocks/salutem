@@ -23,7 +23,7 @@
 
          (async/timeout timeout)
          (async/>! result-channel
-           {:check check :result (results/result :unhealthy)})
+           {:check check :result (results/unhealthy)})
 
          :priority true)
        (async/close! callback-channel)))

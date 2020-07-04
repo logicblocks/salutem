@@ -37,3 +37,15 @@
         result (results/result :healthy {:thing-1 "one" :thing-2 "two"})
         after (t/+ (t/now) (t/new-duration 1 :seconds))]
     (is (t/> after (:evaluated-at result) before))))
+
+(deftest creates-healthy-result
+  (let [result (results/healthy)]
+    (is (= (:status result) :healthy))
+    (is (results/healthy? result))
+    (is (not (results/unhealthy? result)))))
+
+(deftest creates-unhealthy-result
+  (let [result (results/unhealthy)]
+    (is (= (:status result) :unhealthy))
+    (is (results/unhealthy? result))
+    (is (not (results/healthy? result)))))
