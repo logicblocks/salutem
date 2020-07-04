@@ -5,13 +5,13 @@
    [salutem.maintenance :as maintenance]))
 
 (defn check
-  ([name check-fn] (check name check-fn {}))
-  ([name check-fn
+  ([check-name check-fn] (check check-name check-fn {}))
+  ([check-name check-fn
     {:keys [type
             timeout]
      :or   {type    :cached
             timeout 10000}}]
-   {:name     name
+   {:name     check-name
     :check-fn check-fn
     :type     type
     :timeout  timeout}))

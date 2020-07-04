@@ -41,8 +41,7 @@
         resolved-result-1 (registry/resolve-check registry :thing)
         _ (Thread/sleep 10)
         resolved-result-2 (registry/resolve-check registry :thing)]
-    (is (= (count (spy/calls check-fn
-                    )) 2))
+    (is (= (count (spy/calls check-fn)) 2))
     (is (results/healthy? resolved-result-1))
     (is (results/healthy? resolved-result-2))
     (is (t/>

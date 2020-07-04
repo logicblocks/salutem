@@ -18,7 +18,7 @@
               {:channel chan
                :timeout timeout-millis})))))
 
-(deftest evaluates-single-check-passed-on-input-channel-putting-result-on-provided-output-channel
+(deftest evaluates-single-check
   (let [check (checks/check :thing
                 (fn [context result-cb]
                   (result-cb
@@ -39,7 +39,7 @@
 
     (async/close! check-channel)))
 
-(deftest evaluates-multiple-checks-passed-on-input-channel-putting-results-on-provided-output-channel
+(deftest evaluates-multiple-checks
   (let [check-1 (checks/check :thing-1
                   (fn [context result-cb]
                     (result-cb
