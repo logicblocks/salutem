@@ -5,7 +5,9 @@
 
    [salutem.checks :as checks]
    [salutem.results :as results]
-   [salutem.maintenance :as maintenance]))
+   [salutem.maintenance :as maintenance]
+   [salutem.registry :as registry]
+   [tick.core :as t]))
 
 (defn <!!-or-timeout
   ([chan]
@@ -18,52 +20,54 @@
               {:channel chan
                :timeout timeout-millis})))))
 
-(deftest evaluates-single-check
-  (let [check (checks/check :thing
+(deftest evaluator-evaluates-single-check
+  (let [context {:some "context"}
+
+        check (checks/background-check :thing
                 (fn [context result-cb]
                   (result-cb
-                    (results/result :unhealthy
+                    (results/unhealthy
                       (merge context {:latency 1000})))))
-        context {:some "context"}
 
-        check-channel (async/chan)
+        evaluation-channel (async/chan)
         result-channel (async/chan)]
-    (maintenance/evaluator check-channel result-channel)
+    (maintenance/evaluator evaluation-channel result-channel)
 
-    (async/put! check-channel {:check check :context context})
+    (async/put! evaluation-channel {:check check :context context})
 
     (let [{:keys [result]} (<!!-or-timeout result-channel)]
       (is (results/unhealthy? result))
-      (is (= 1000 (:latency result)))
-      (is (= "context" (:some result))))
+      (is (= (:latency result) 1000))
+      (is (= (:some result) "context")))
 
-    (async/close! check-channel)))
+    (async/close! evaluation-channel)))
 
-(deftest evaluates-multiple-checks
-  (let [check-1 (checks/check :thing-1
+(deftest evaluator-evaluates-multiple-checks
+  (let [context {:some "context"}
+
+        check-1 (checks/background-check :thing-1
                   (fn [context result-cb]
                     (result-cb
-                      (results/result :unhealthy
+                      (results/unhealthy
                         (merge context {:latency 1000})))))
-        check-2 (checks/check :thing-2
+        check-2 (checks/background-check :thing-2
                   (fn [context result-cb]
                     (result-cb
-                      (results/result :healthy
+                      (results/healthy
                         (merge context {:latency 120})))))
-        check-3 (checks/check :thing-3
+        check-3 (checks/background-check :thing-3
                   (fn [context result-cb]
                     (result-cb
-                      (results/result :unhealthy
+                      (results/unhealthy
                         (merge context {:latency 2000})))))
-        context {:some "context"}
 
-        check-channel (async/chan)
+        evaluation-channel (async/chan)
         result-channel (async/chan)]
-    (maintenance/evaluator check-channel result-channel)
+    (maintenance/evaluator evaluation-channel result-channel)
 
-    (async/put! check-channel {:check check-1 :context context})
-    (async/put! check-channel {:check check-2 :context context})
-    (async/put! check-channel {:check check-3 :context context})
+    (async/put! evaluation-channel {:check check-1 :context context})
+    (async/put! evaluation-channel {:check check-2 :context context})
+    (async/put! evaluation-channel {:check check-3 :context context})
 
     (letfn [(find-result [results name]
               (->> results
@@ -75,63 +79,95 @@
             check-2-result (find-result results :thing-2)
             check-3-result (find-result results :thing-3)]
         (is (results/unhealthy? check-1-result))
-        (is (= 1000 (:latency check-1-result)))
-        (is (= "context" (:some check-1-result)))
+        (is (= (:latency check-1-result) 1000))
+        (is (= (:some check-1-result) "context"))
 
         (is (results/healthy? check-2-result))
-        (is (= 120 (:latency check-2-result)))
-        (is (= "context" (:some check-2-result)))
+        (is (= (:latency check-2-result) 120))
+        (is (= (:some check-2-result) "context"))
 
         (is (results/unhealthy? check-3-result))
-        (is (= 2000 (:latency check-3-result)))
-        (is (= "context" (:some check-3-result)))))
+        (is (= (:latency check-3-result) 2000))
+        (is (= (:some check-3-result) "context"))))
 
-    (async/close! check-channel)))
+    (async/close! evaluation-channel)))
 
-(deftest times-out-evaluation-when-check-takes-longer-than-check-timeout
-  (let [check (checks/check :thing
+(deftest evaluator-times-out-evaluation-when-check-takes-longer-than-timeout
+  (let [check (checks/background-check :thing
                 (fn [_ result-cb]
                   (Thread/sleep 100)
                   (result-cb
-                    (results/result :healthy)))
-                {:timeout 50})
+                    (results/healthy)))
+                {:timeout (t/new-duration 50 :millis)})
 
-        check-channel (async/chan)
+        evaluation-channel (async/chan)
         result-channel (async/chan)]
-    (maintenance/evaluator check-channel result-channel)
+    (maintenance/evaluator evaluation-channel result-channel)
 
-    (async/put! check-channel {:check check})
+    (async/put! evaluation-channel {:check check})
 
     (let [{:keys [result]} (<!!-or-timeout result-channel 200)]
       (is (results/unhealthy? result)))
 
-    (async/close! check-channel)))
+    (async/close! evaluation-channel)))
 
-(deftest evaluates-check-to-returned-output-channel-when-none-provided
-  (let [check (checks/check :thing
+(deftest evaluator-evaluates-to-returned-result-channel-when-none-provided
+  (let [context {:some "context"}
+
+        check (checks/background-check :thing
                 (fn [context result-cb]
                   (result-cb
-                    (results/result :unhealthy
+                    (results/unhealthy
                       (merge context {:latency 1000})))))
-        context {:some "context"}
 
-        in (async/chan)
-        out (maintenance/evaluator in)]
+        evaluation-channel (async/chan)
+        result-channel (maintenance/evaluator evaluation-channel)]
 
-    (async/put! in {:check check :context context})
+    (async/put! evaluation-channel {:check check :context context})
 
-    (let [{:keys [result]} (<!!-or-timeout out)]
+    (let [{:keys [result]} (<!!-or-timeout result-channel)]
       (is (results/unhealthy? result))
-      (is (= 1000 (:latency result)))
-      (is (= "context" (:some result))))
+      (is (= (:latency result) 1000))
+      (is (= (:some result) "context")))
 
-    (async/close! in)))
+    (async/close! evaluation-channel)))
 
-(deftest closes-evaluator-output-channel-when-input-channel-closed
-  (let [in (async/chan)
-        out (async/chan)]
-    (maintenance/evaluator in out)
+(deftest evaluator-closes-result-channel-when-evaluation-channel-closed
+  (let [evaluation-channel (async/chan)
+        result-channel (async/chan)]
+    (maintenance/evaluator evaluation-channel result-channel)
 
-    (async/close! in)
+    (async/close! evaluation-channel)
 
-    (is (nil? (<!!-or-timeout out)))))
+    (is (nil? (<!!-or-timeout result-channel)))))
+
+(deftest refresher-puts-single-outdated-check-to-evaluation-channel
+  (let [context {:some "context"}
+
+        check
+        (checks/background-check :thing
+          (fn [context result-cb]
+            (result-cb
+              (results/healthy
+                (merge context {:latency 100}))))
+          {:ttl (t/new-duration 30 :seconds)})
+        outdated-result
+        (results/healthy
+          {:evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
+
+        registry
+        (-> (registry/empty-registry)
+          (registry/with-check check)
+          (registry/with-cached-result check outdated-result))
+
+        trigger-channel (async/chan)
+        evaluation-channel (async/chan)]
+    (maintenance/refresher trigger-channel evaluation-channel)
+
+    (async/put! trigger-channel {:registry registry :context context})
+
+    (let [evaluation (<!!-or-timeout evaluation-channel)]
+      (is (= (:check evaluation) check))
+      (is (= (:context evaluation) context)))
+
+    (async/close! trigger-channel)))

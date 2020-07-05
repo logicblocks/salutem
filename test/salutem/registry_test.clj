@@ -10,32 +10,121 @@
    [salutem.registry :as registry]))
 
 (deftest adds-single-check-to-registry
-  (let [check (checks/check :thing
+  (let [check (checks/realtime-check :thing
                 (fn [_ result-cb]
-                  (result-cb (results/result :healthy))))
+                  (result-cb (results/healthy))))
         registry (registry/with-check (registry/empty-registry) check)]
     (is (= (registry/find-check registry :thing) check))))
 
 (deftest adds-many-checks-to-registry
-  (let [check-1 (checks/check :thing-1
+  (let [check-1 (checks/realtime-check :thing-1
                   (fn [_ result-cb]
-                    (result-cb (results/result :healthy))))
-        check-2 (checks/check :thing-2
+                    (result-cb (results/healthy))))
+        check-2 (checks/background-check :thing-2
                   (fn [_ result-callback]
-                    (result-callback (results/result :unhealthy))))
+                    (result-callback (results/unhealthy))))
 
         registry (-> (registry/empty-registry)
                    (registry/with-check check-1)
                    (registry/with-check check-2))]
     (is (= (registry/check-names registry) #{:thing-1 :thing-2}))))
 
+(deftest returns-single-outdated-check
+  (let [check-1 (checks/background-check :thing-1
+                  (fn [_ result-cb]
+                    (result-cb (results/healthy)))
+                  {:ttl (t/new-duration 30 :seconds)})
+        check-2 (checks/background-check :thing-2
+                  (fn [_ result-cb]
+                    (result-cb (results/unhealthy)))
+                  {:ttl (t/new-duration 5 :minutes)})
+
+        outdated-check-1-result
+        (results/healthy
+          {:evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
+        current-check-2-result
+        (results/healthy
+          {:evaluated-at (t/- (t/now) (t/new-duration 10 :seconds))})
+
+        registry
+        (-> (registry/empty-registry)
+          (registry/with-check check-1)
+          (registry/with-check check-2)
+          (registry/with-cached-result check-1 outdated-check-1-result)
+          (registry/with-cached-result check-2 current-check-2-result))
+
+        outdated-checks (registry/outdated-checks registry)]
+    (is (= #{check-1} outdated-checks))))
+
+(deftest returns-many-outdated-checks
+  (let [check-1 (checks/background-check :thing-1
+                  (fn [_ result-cb]
+                    (result-cb (results/healthy)))
+                  {:ttl (t/new-duration 30 :seconds)})
+        check-2 (checks/background-check :thing-2
+                  (fn [_ result-cb]
+                    (result-cb (results/unhealthy)))
+                  {:ttl (t/new-duration 5 :minutes)})
+        check-3 (checks/background-check :thing-3
+                  (fn [_ result-cb]
+                    (result-cb (results/healthy)))
+                  {:ttl (t/new-duration 1 :minutes)})
+
+        outdated-check-1-result
+        (results/healthy
+          {:evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
+        current-check-2-result
+        (results/healthy
+          {:evaluated-at (t/- (t/now) (t/new-duration 10 :seconds))})
+        outdated-check-3-result
+        (results/healthy
+          {:evaluated-at (t/- (t/now) (t/new-duration 2 :minutes))})
+
+        registry
+        (-> (registry/empty-registry)
+          (registry/with-check check-1)
+          (registry/with-check check-2)
+          (registry/with-check check-3)
+          (registry/with-cached-result check-1 outdated-check-1-result)
+          (registry/with-cached-result check-2 current-check-2-result)
+          (registry/with-cached-result check-3 outdated-check-3-result))
+
+        outdated-checks (registry/outdated-checks registry)]
+    (is (= #{check-1 check-3} outdated-checks))))
+
+(deftest treats-background-checks-without-result-as-outdated
+  (let [check-1 (checks/background-check :thing-1
+                  (fn [_ result-cb]
+                    (result-cb (results/healthy)))
+                  {:ttl (t/new-duration 30 :seconds)})
+        check-2 (checks/background-check :thing-2
+                  (fn [_ result-cb]
+                    (result-cb (results/unhealthy)))
+                  {:ttl (t/new-duration 5 :minutes)})
+        check-3 (checks/background-check :thing-3
+                  (fn [_ result-cb]
+                    (result-cb (results/healthy)))
+                  {:ttl (t/new-duration 1 :minutes)})
+
+        current-check-2-result
+        (results/healthy
+          {:evaluated-at (t/- (t/now) (t/new-duration 10 :seconds))})
+
+        registry
+        (-> (registry/empty-registry)
+          (registry/with-check check-1)
+          (registry/with-check check-2)
+          (registry/with-check check-3)
+          (registry/with-cached-result check-2 current-check-2-result))
+
+        outdated-checks (registry/outdated-checks registry)]
+    (is (= #{check-1 check-3} outdated-checks))))
+
 (deftest resolves-realtime-check-every-time
   (let [check-fn (spy/spy
                    (fn [_ result-cb]
-                     (result-cb (results/result :healthy))))
-        check (checks/check :thing
-                check-fn
-                {:type :realtime})
+                     (result-cb (results/healthy))))
+        check (checks/realtime-check :thing check-fn)
         registry (registry/with-check (registry/empty-registry) check)
 
         resolved-result-1 (registry/resolve-check registry :thing)
@@ -48,26 +137,22 @@
           (:evaluated-at resolved-result-2)
           (:evaluated-at resolved-result-1)))))
 
-(deftest resolves-cached-check-when-no-cached-result-available
+(deftest resolves-background-check-when-no-cached-result-available
   (let [check-fn (spy/spy
                    (fn [_ result-cb]
-                     (result-cb (results/result :unhealthy))))
-        check (checks/check :thing
-                check-fn
-                {:type :cached})
+                     (result-cb (results/unhealthy))))
+        check (checks/background-check :thing check-fn)
         registry (registry/with-check (registry/empty-registry) check)
         resolved-result (registry/resolve-check registry :thing)]
     (is (= (count (spy/calls check-fn)) 1))
     (is (results/unhealthy? resolved-result))))
 
-(deftest resolves-cached-check-as-previous-result-when-available
+(deftest resolves-background-check-as-previous-result-when-available
   (let [check-fn (spy/spy
                    (fn [_ result-cb]
-                     (result-cb (results/result :unhealthy))))
-        check (checks/check :thing
-                check-fn
-                {:type :cached})
-        cached-result (results/result :healthy)
+                     (result-cb (results/unhealthy))))
+        check (checks/background-check :thing check-fn)
+        cached-result (results/healthy)
         registry (-> (registry/empty-registry)
                    (registry/with-check check)
                    (registry/with-cached-result check cached-result))

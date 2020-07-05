@@ -1,6 +1,9 @@
 (ns salutem.registry
   (:require
-   [salutem.checks :as checks]))
+   [tick.alpha.api :as t]
+
+   [salutem.checks :as checks]
+   [salutem.results :as results]))
 
 (defn empty-registry []
   {:checks         {}
@@ -21,6 +24,17 @@
 (defn check-names [registry]
   (set (keys (:checks registry))))
 
+(defn all-checks [registry]
+  (set (vals (:checks registry))))
+
+(defn outdated-checks [registry]
+  (set
+    (filter
+      (fn [check]
+        (results/outdated?
+          (find-cached-result registry (:name check)) check (t/now)))
+      (all-checks registry))))
+
 (defn resolve-check
   ([registry check-name]
    (resolve-check registry check-name {}))
@@ -28,5 +42,5 @@
    (let [check (find-check registry check-name)
          result (find-cached-result registry check-name)]
      (if (or (checks/realtime? check) (not result))
-       (checks/attempt check context)
+       (checks/evaluate check context)
        result))))

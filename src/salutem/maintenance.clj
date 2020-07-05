@@ -2,45 +2,35 @@
   (:require
    [clojure.core.async :as async]
 
-   [salutem.results :as results]))
-
-(defn attempt
-  ([check context]
-   (attempt check context (async/chan 1)))
-  ([check context result-channel]
-   (async/go
-     (let [{:keys [check-fn timeout]} check
-           callback-channel (async/chan)]
-       (async/thread
-         (check-fn context
-           (fn [result]
-             (async/>!! callback-channel result))))
-       (async/alt!
-         callback-channel
-         ([result]
-          (async/>! result-channel
-            {:check check :result result}))
-
-         (async/timeout timeout)
-         (async/>! result-channel
-           {:check check :result (results/unhealthy)})
-
-         :priority true)
-       (async/close! callback-channel)))
-   result-channel))
+   [salutem.checks :as checks]
+   [salutem.registry :as registry]))
 
 (defn evaluator
-  ([check-channel]
-   (evaluator check-channel (async/chan 1)))
-  ([check-channel result-channel]
+  ([evaluation-channel]
+   (evaluator evaluation-channel (async/chan 1)))
+  ([evaluation-channel result-channel]
    (async/go
      (loop []
        (let [{:keys [check context]
               :or   {context {}}
-              :as   evaluation} (async/<! check-channel)]
+              :as   evaluation} (async/<! evaluation-channel)]
          (if evaluation
            (do
-             (attempt check context result-channel)
+             (checks/attempt check context result-channel)
              (recur))
            (async/close! result-channel)))))
    result-channel))
+
+(defn refresher [trigger-channel evaluation-channel]
+  (async/go
+    (loop []
+      (let [{:keys [registry context]
+             :or   {context {}}
+             :as trigger} (async/<! trigger-channel)]
+        (if trigger
+          (do
+            (doseq [check (registry/outdated-checks registry)]
+              (async/>! evaluation-channel {:check check :context context}))
+            (recur))
+          (async/close! evaluation-channel)))))
+  evaluation-channel)

@@ -10,8 +10,9 @@
 (def unhealthy? results/unhealthy?)
 
 ; checks
-(def check checks/check)
-(def cached? checks/cached?)
+(def background-check checks/background-check)
+(def realtime-check checks/realtime-check)
+(def background? checks/background?)
 (def realtime? checks/realtime?)
 
 ; registry

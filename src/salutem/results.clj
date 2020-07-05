@@ -26,3 +26,10 @@
 
 (defn unhealthy? [result]
   (= (:status result) :unhealthy))
+
+(defn outdated?
+  ([result check] (outdated? result check (t/now)))
+  ([result check relative-to]
+   (or (nil? result)
+     (t/< (:evaluated-at result)
+       (t/- relative-to (:ttl check))))))
