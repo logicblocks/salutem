@@ -21,16 +21,19 @@
            (async/close! result-channel)))))
    result-channel))
 
-(defn refresher [trigger-channel evaluation-channel]
-  (async/go
-    (loop []
-      (let [{:keys [registry context]
-             :or   {context {}}
-             :as trigger} (async/<! trigger-channel)]
-        (if trigger
-          (do
-            (doseq [check (registry/outdated-checks registry)]
-              (async/>! evaluation-channel {:check check :context context}))
-            (recur))
-          (async/close! evaluation-channel)))))
-  evaluation-channel)
+(defn refresher
+  ([trigger-channel]
+   (refresher trigger-channel (async/chan 1)))
+  ([trigger-channel evaluation-channel]
+   (async/go
+     (loop []
+       (let [{:keys [registry context]
+              :or   {context {}}
+              :as   trigger} (async/<! trigger-channel)]
+         (if trigger
+           (do
+             (doseq [check (registry/outdated-checks registry)]
+               (async/>! evaluation-channel {:check check :context context}))
+             (recur))
+           (async/close! evaluation-channel)))))
+   evaluation-channel))

@@ -146,10 +146,7 @@
 
         check
         (checks/background-check :thing
-          (fn [context result-cb]
-            (result-cb
-              (results/healthy
-                (merge context {:latency 100}))))
+          (fn [_ result-cb] (result-cb (results/healthy)))
           {:ttl (t/new-duration 30 :seconds)})
         outdated-result
         (results/healthy
@@ -171,3 +168,85 @@
       (is (= (:context evaluation) context)))
 
     (async/close! trigger-channel)))
+
+(deftest refresher-puts-many-outdated-checks-to-evaluation-channel
+  (let [context {:some "context"}
+
+        check-1
+        (checks/background-check :thing-1
+          (fn [_ result-cb] (result-cb (results/healthy)))
+          {:ttl (t/new-duration 30 :seconds)})
+        check-2
+        (checks/background-check :thing-2
+          (fn [_ result-cb] (result-cb (results/healthy)))
+          {:ttl (t/new-duration 1 :minutes)})
+        check-3
+        (checks/background-check :thing-2
+          (fn [_ result-cb] (result-cb (results/healthy)))
+          {:ttl (t/new-duration 45 :seconds)})
+
+        check-1-outdated-result
+        (results/healthy
+          {:evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
+        check-2-current-result
+        (results/healthy
+          {:evaluated-at (t/- (t/now) (t/new-duration 40 :seconds))})
+        check-3-outdated-result
+        (results/healthy
+          {:evaluated-at (t/- (t/now) (t/new-duration 55 :seconds))})
+
+        registry
+        (-> (registry/empty-registry)
+          (registry/with-check check-1)
+          (registry/with-check check-2)
+          (registry/with-check check-3)
+          (registry/with-cached-result check-1 check-1-outdated-result)
+          (registry/with-cached-result check-2 check-2-current-result)
+          (registry/with-cached-result check-3 check-3-outdated-result))
+
+        trigger-channel (async/chan)
+        evaluation-channel (async/chan)]
+    (maintenance/refresher trigger-channel evaluation-channel)
+
+    (async/put! trigger-channel {:registry registry :context context})
+    (async/close! trigger-channel)
+
+    (let [evaluations (<!!-or-timeout (async/into #{} evaluation-channel))]
+      (is (= #{{:check check-1 :context context}
+               {:check check-3 :context context}}
+            evaluations)))))
+
+(deftest refresher-puts-to-returned-evaluation-channel-when-none-provided
+  (let [context {:some "context"}
+
+        check
+        (checks/background-check :thing
+          (fn [_ result-cb] (result-cb (results/healthy)))
+          {:ttl (t/new-duration 30 :seconds)})
+        outdated-result
+        (results/healthy
+          {:evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
+
+        registry
+        (-> (registry/empty-registry)
+          (registry/with-check check)
+          (registry/with-cached-result check outdated-result))
+
+        trigger-channel (async/chan)
+        evaluation-channel (maintenance/refresher trigger-channel)]
+    (async/put! trigger-channel {:registry registry :context context})
+
+    (let [evaluation (<!!-or-timeout evaluation-channel)]
+      (is (= (:check evaluation) check))
+      (is (= (:context evaluation) context)))
+
+    (async/close! trigger-channel)))
+
+(deftest refresher-closes-evaluation-channel-when-trigger-channel-closed
+  (let [trigger-channel (async/chan)
+        evaluation-channel (async/chan)]
+    (maintenance/evaluator trigger-channel evaluation-channel)
+
+    (async/close! trigger-channel)
+
+    (is (nil? (<!!-or-timeout evaluation-channel)))))
