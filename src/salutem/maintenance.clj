@@ -2,6 +2,8 @@
   (:require
    [clojure.core.async :as async]
 
+   [tick.alpha.api :as t]
+
    [salutem.checks :as checks]
    [salutem.registry :as registry]))
 
@@ -47,3 +49,19 @@
           (swap! registry-store
             registry/with-cached-result check result)
           (recur))))))
+
+(defn maintainer [registry-store context interval trigger-channel]
+  (let [interval-millis (t/millis interval)
+        shutdown-channel (async/chan)]
+    (async/go
+      (loop []
+        (async/alt!
+          (async/timeout interval-millis)
+          (do
+            (async/>! trigger-channel
+              {:registry @registry-store :context context})
+            (recur))
+
+          shutdown-channel
+          (async/close! trigger-channel))))
+    shutdown-channel))

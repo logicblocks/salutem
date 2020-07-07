@@ -283,13 +283,13 @@
         (is (= @registry-store
               (registry/with-cached-result registry check result)))
         (do
-          (Thread/sleep 25)
+          (async/<!! (async/timeout 25))
           (and (< attempts 5) (recur (inc attempts))))))
 
     (remove-watch registry-store :watcher)
     (async/close! result-channel)))
 
-(deftest updater-adds-manny-results-to-registry-in-registry-store-atom
+(deftest updater-adds-many-results-to-registry-in-registry-store-atom
   (let [check-1 (checks/background-check :thing-1
                   (fn [_ result-cb] (result-cb (results/healthy))))
         check-2 (checks/background-check :thing-2
@@ -331,8 +331,57 @@
                 (registry/with-cached-result check-2 result-2)
                 (registry/with-cached-result check-3 result-3))))
         (do
-          (Thread/sleep 25)
+          (async/<!! (async/timeout 25))
           (and (< attempts 5) (recur (inc attempts))))))
 
     (remove-watch registry-store :watcher)
     (async/close! result-channel)))
+
+(deftest maintainer-puts-trigger-on-trigger-channel-every-interval
+  (let [context {:some "context"}
+        interval (t/new-duration 50 :millis)
+
+        check (checks/background-check :thing
+                (fn [_ result-cb] (result-cb (results/healthy))))
+
+        registry (-> (registry/empty-registry)
+                   (registry/with-check check))
+
+        registry-store (atom registry)
+
+        trigger-channel (async/chan 10)
+        shutdown-channel
+        (maintenance/maintainer
+          registry-store context interval trigger-channel)]
+
+    (async/<!! (async/timeout 150))
+
+    (let [triggers
+          (<!!-or-timeout (async/into [] (async/take 3 trigger-channel)))]
+      (is (= [{:registry registry :context context}
+              {:registry registry :context context}
+              {:registry registry :context context}]
+            triggers)))
+
+    (async/close! shutdown-channel)))
+
+(deftest maintainer-closes-trigger-channel-when-shutdown-channel-closed
+  (let [context {:some "context"}
+        interval (t/new-duration 200 :millis)
+
+        check (checks/background-check :thing
+                (fn [_ result-cb] (result-cb (results/healthy))))
+
+        registry (-> (registry/empty-registry)
+                   (registry/with-check check))
+
+        registry-store (atom registry)
+
+        trigger-channel (async/chan 10)
+        shutdown-channel
+        (maintenance/maintainer
+          registry-store context interval trigger-channel)]
+
+    (async/close! shutdown-channel)
+
+    (is (nil? (<!!-or-timeout trigger-channel)))))
