@@ -13,8 +13,8 @@
      (loop []
        (let [{:keys [check context]
               :or   {context {}}
-              :as   evaluation} (async/<! evaluation-channel)]
-         (if evaluation
+              :as   evaluation-message} (async/<! evaluation-channel)]
+         (if evaluation-message
            (do
              (checks/attempt check context result-channel)
              (recur))
@@ -29,11 +29,21 @@
      (loop []
        (let [{:keys [registry context]
               :or   {context {}}
-              :as   trigger} (async/<! trigger-channel)]
-         (if trigger
+              :as   trigger-message} (async/<! trigger-channel)]
+         (if trigger-message
            (do
              (doseq [check (registry/outdated-checks registry)]
                (async/>! evaluation-channel {:check check :context context}))
              (recur))
            (async/close! evaluation-channel)))))
    evaluation-channel))
+
+(defn updater [registry-store result-channel]
+  (async/go
+    (loop []
+      (let [{:keys [check result]
+             :as   result-message} (async/<! result-channel)]
+        (when result-message
+          (swap! registry-store
+            registry/with-cached-result check result)
+          (recur))))))
