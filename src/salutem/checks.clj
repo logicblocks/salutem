@@ -48,10 +48,9 @@
    (async/go
      (let [{:keys [check-fn timeout]} check
            callback-channel (async/chan)]
-       (async/thread
-         (check-fn context
-           (fn [result]
-             (async/>!! callback-channel result))))
+       (check-fn context
+         (fn [result]
+           (async/put! callback-channel result)))
        (async/alt!
          callback-channel
          ([result]

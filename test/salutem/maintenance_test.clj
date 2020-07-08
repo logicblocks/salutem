@@ -20,132 +20,54 @@
               {:channel chan
                :timeout (t/millis timeout)})))))
 
-(deftest evaluator-evaluates-single-check
+(deftest maintainer-puts-trigger-on-trigger-channel-every-interval
   (let [context {:some "context"}
+        interval (t/new-duration 50 :millis)
 
         check (checks/background-check :thing
-                (fn [context result-cb]
-                  (result-cb
-                    (results/unhealthy
-                      (merge context
-                        {:latency (t/new-duration 1 :seconds)})))))
+                (fn [_ result-cb] (result-cb (results/healthy))))
 
-        evaluation-channel (async/chan)
-        result-channel (async/chan)]
-    (maintenance/evaluator evaluation-channel result-channel)
+        registry (-> (registry/empty-registry)
+                   (registry/with-check check))
 
-    (async/put! evaluation-channel {:check check :context context})
+        registry-store (atom registry)
 
-    (let [{:keys [result]} (<!!-or-timeout result-channel)]
-      (is (results/unhealthy? result))
-      (is (= (:latency result) (t/new-duration 1 :seconds)))
-      (is (= (:some result) "context")))
+        trigger-channel (async/chan 10)
+        shutdown-channel
+        (maintenance/maintainer
+          registry-store context interval trigger-channel)]
 
-    (async/close! evaluation-channel)))
+    (async/<!! (async/timeout 150))
 
-(deftest evaluator-evaluates-multiple-checks
+    (let [triggers
+          (<!!-or-timeout (async/into [] (async/take 3 trigger-channel)))]
+      (is (= [{:registry registry :context context}
+              {:registry registry :context context}
+              {:registry registry :context context}]
+            triggers)))
+
+    (async/close! shutdown-channel)))
+
+(deftest maintainer-closes-trigger-channel-when-shutdown-channel-closed
   (let [context {:some "context"}
-
-        check-1 (checks/background-check :thing-1
-                  (fn [context result-cb]
-                    (result-cb
-                      (results/unhealthy
-                        (merge context
-                          {:latency (t/new-duration 1 :seconds)})))))
-        check-2 (checks/background-check :thing-2
-                  (fn [context result-cb]
-                    (result-cb
-                      (results/healthy
-                        (merge context
-                          {:latency (t/new-duration 120 :millis)})))))
-        check-3 (checks/background-check :thing-3
-                  (fn [context result-cb]
-                    (result-cb
-                      (results/unhealthy
-                        (merge context
-                          {:latency (t/new-duration 2 :seconds)})))))
-
-        evaluation-channel (async/chan)
-        result-channel (async/chan)]
-    (maintenance/evaluator evaluation-channel result-channel)
-
-    (async/put! evaluation-channel {:check check-1 :context context})
-    (async/put! evaluation-channel {:check check-2 :context context})
-    (async/put! evaluation-channel {:check check-3 :context context})
-
-    (letfn [(find-result [results name]
-              (->> results
-                (filter #(= (get-in % [:check :name]) name))
-                first
-                :result))]
-      (let [results (async/<!! (async/into [] (async/take 3 result-channel)))
-            check-1-result (find-result results :thing-1)
-            check-2-result (find-result results :thing-2)
-            check-3-result (find-result results :thing-3)]
-        (is (results/unhealthy? check-1-result))
-        (is (= (:latency check-1-result) (t/new-duration 1 :seconds)))
-        (is (= (:some check-1-result) "context"))
-
-        (is (results/healthy? check-2-result))
-        (is (= (:latency check-2-result) (t/new-duration 120 :millis)))
-        (is (= (:some check-2-result) "context"))
-
-        (is (results/unhealthy? check-3-result))
-        (is (= (:latency check-3-result) (t/new-duration 2 :seconds)))
-        (is (= (:some check-3-result) "context"))))
-
-    (async/close! evaluation-channel)))
-
-(deftest evaluator-times-out-evaluation-when-check-takes-longer-than-timeout
-  (let [check (checks/background-check :thing
-                (fn [_ result-cb]
-                  (Thread/sleep 100)
-                  (result-cb
-                    (results/healthy)))
-                {:timeout (t/new-duration 50 :millis)})
-
-        evaluation-channel (async/chan)
-        result-channel (async/chan)]
-    (maintenance/evaluator evaluation-channel result-channel)
-
-    (async/put! evaluation-channel {:check check})
-
-    (let [{:keys [result]} (<!!-or-timeout result-channel
-                             (t/new-duration 200 :millis))]
-      (is (results/unhealthy? result)))
-
-    (async/close! evaluation-channel)))
-
-(deftest evaluator-evaluates-to-returned-result-channel-when-none-provided
-  (let [context {:some "context"}
+        interval (t/new-duration 200 :millis)
 
         check (checks/background-check :thing
-                (fn [context result-cb]
-                  (result-cb
-                    (results/unhealthy
-                      (merge context
-                        {:latency (t/new-duration 1 :seconds)})))))
+                (fn [_ result-cb] (result-cb (results/healthy))))
 
-        evaluation-channel (async/chan)
-        result-channel (maintenance/evaluator evaluation-channel)]
+        registry (-> (registry/empty-registry)
+                   (registry/with-check check))
 
-    (async/put! evaluation-channel {:check check :context context})
+        registry-store (atom registry)
 
-    (let [{:keys [result]} (<!!-or-timeout result-channel)]
-      (is (results/unhealthy? result))
-      (is (= (:latency result) (t/new-duration 1 :seconds)))
-      (is (= (:some result) "context")))
+        trigger-channel (async/chan 10)
+        shutdown-channel
+        (maintenance/maintainer
+          registry-store context interval trigger-channel)]
 
-    (async/close! evaluation-channel)))
+    (async/close! shutdown-channel)
 
-(deftest evaluator-closes-result-channel-when-evaluation-channel-closed
-  (let [evaluation-channel (async/chan)
-        result-channel (async/chan)]
-    (maintenance/evaluator evaluation-channel result-channel)
-
-    (async/close! evaluation-channel)
-
-    (is (nil? (<!!-or-timeout result-channel)))))
+    (is (nil? (<!!-or-timeout trigger-channel)))))
 
 (deftest refresher-puts-single-outdated-check-to-evaluation-channel
   (let [context {:some "context"}
@@ -257,6 +179,134 @@
 
     (is (nil? (<!!-or-timeout evaluation-channel)))))
 
+(deftest evaluator-evaluates-single-check
+  (let [context {:some "context"}
+
+        check (checks/background-check :thing
+                (fn [context result-cb]
+                  (result-cb
+                    (results/unhealthy
+                      (merge context
+                        {:latency (t/new-duration 1 :seconds)})))))
+
+        evaluation-channel (async/chan)
+        result-channel (async/chan)]
+    (maintenance/evaluator evaluation-channel result-channel)
+
+    (async/put! evaluation-channel {:check check :context context})
+
+    (let [{:keys [result]} (<!!-or-timeout result-channel)]
+      (is (results/unhealthy? result))
+      (is (= (:latency result) (t/new-duration 1 :seconds)))
+      (is (= (:some result) "context")))
+
+    (async/close! evaluation-channel)))
+
+(deftest evaluator-evaluates-multiple-checks
+  (let [context {:some "context"}
+
+        check-1 (checks/background-check :thing-1
+                  (fn [context result-cb]
+                    (result-cb
+                      (results/unhealthy
+                        (merge context
+                          {:latency (t/new-duration 1 :seconds)})))))
+        check-2 (checks/background-check :thing-2
+                  (fn [context result-cb]
+                    (result-cb
+                      (results/healthy
+                        (merge context
+                          {:latency (t/new-duration 120 :millis)})))))
+        check-3 (checks/background-check :thing-3
+                  (fn [context result-cb]
+                    (result-cb
+                      (results/unhealthy
+                        (merge context
+                          {:latency (t/new-duration 2 :seconds)})))))
+
+        evaluation-channel (async/chan)
+        result-channel (async/chan)]
+    (maintenance/evaluator evaluation-channel result-channel)
+
+    (async/put! evaluation-channel {:check check-1 :context context})
+    (async/put! evaluation-channel {:check check-2 :context context})
+    (async/put! evaluation-channel {:check check-3 :context context})
+
+    (letfn [(find-result [results name]
+              (->> results
+                (filter #(= (get-in % [:check :name]) name))
+                first
+                :result))]
+      (let [results (async/<!! (async/into [] (async/take 3 result-channel)))
+            check-1-result (find-result results :thing-1)
+            check-2-result (find-result results :thing-2)
+            check-3-result (find-result results :thing-3)]
+        (is (results/unhealthy? check-1-result))
+        (is (= (:latency check-1-result) (t/new-duration 1 :seconds)))
+        (is (= (:some check-1-result) "context"))
+
+        (is (results/healthy? check-2-result))
+        (is (= (:latency check-2-result) (t/new-duration 120 :millis)))
+        (is (= (:some check-2-result) "context"))
+
+        (is (results/unhealthy? check-3-result))
+        (is (= (:latency check-3-result) (t/new-duration 2 :seconds)))
+        (is (= (:some check-3-result) "context"))))
+
+    (async/close! evaluation-channel)))
+
+(deftest evaluator-times-out-evaluation-when-check-takes-longer-than-timeout
+  (let [check (checks/background-check :thing
+                (fn [_ result-cb]
+                  (future
+                    (Thread/sleep 100)
+                    (result-cb
+                      (results/healthy))))
+                {:timeout (t/new-duration 50 :millis)})
+
+        evaluation-channel (async/chan)
+        result-channel (async/chan)]
+    (maintenance/evaluator evaluation-channel result-channel)
+
+    (async/put! evaluation-channel {:check check})
+
+    (let [{:keys [result]} (<!!-or-timeout result-channel
+                             (t/new-duration 200 :millis))]
+      (is (results/unhealthy? result)))
+
+    (async/close! evaluation-channel)))
+
+(deftest evaluator-evaluates-to-returned-result-channel-when-none-provided
+  (let [context {:some "context"}
+
+        check (checks/background-check :thing
+                (fn [context result-cb]
+                  (result-cb
+                    (results/unhealthy
+                      (merge context
+                        {:latency (t/new-duration 1 :seconds)})))))
+
+        evaluation-channel (async/chan)
+        result-channel (maintenance/evaluator evaluation-channel)]
+
+    (async/put! evaluation-channel {:check check :context context})
+
+    (let [{:keys [result]} (<!!-or-timeout result-channel)]
+      (is (results/unhealthy? result))
+      (is (= (:latency result) (t/new-duration 1 :seconds)))
+      (is (= (:some result) "context")))
+
+    (async/close! evaluation-channel)))
+
+(deftest evaluator-closes-result-channel-when-evaluation-channel-closed
+  (let [evaluation-channel (async/chan)
+        result-channel (async/chan)]
+    (maintenance/evaluator evaluation-channel result-channel)
+
+    (async/close! evaluation-channel)
+
+    (is (nil? (<!!-or-timeout result-channel)))))
+
 (deftest updater-adds-single-result-to-registry-in-registry-store-atom
   (let [check (checks/background-check :thing
                 (fn [_ result-cb] (result-cb (results/healthy))))
@@ -337,51 +387,38 @@
     (remove-watch registry-store :watcher)
     (async/close! result-channel)))
 
-(deftest maintainer-puts-trigger-on-trigger-channel-every-interval
-  (let [context {:some "context"}
+(deftest maintain-starts-pipeline-to-refresh-registry
+  (let [check-count (atom 0)
+
+        check (checks/background-check :thing
+                (fn [context result-cb]
+                  (swap! check-count inc)
+                  (result-cb
+                    (results/healthy
+                      (merge context
+                        {:invocation-count @check-count}))))
+                {:ttl (t/new-duration 25 :millis)})
+
+        registry (-> (registry/empty-registry)
+                   (registry/with-check check))
+
+        registry-store (atom registry)
+
+        context {:some "context"}
         interval (t/new-duration 50 :millis)
 
-        check (checks/background-check :thing
-                (fn [_ result-cb] (result-cb (results/healthy))))
+        maintenance-pipeline
+        (maintenance/maintain registry-store
+          {:context  context
+           :interval interval})]
 
-        registry (-> (registry/empty-registry)
-                   (registry/with-check check))
+    (async/<!! (async/timeout 175))
 
-        registry-store (atom registry)
+    (letfn [(time-free [result]
+              (dissoc result :evaluated-at))]
+      (is (=
+            (time-free (registry/find-cached-result @registry-store :thing))
+            (time-free (results/healthy
+                         (merge context {:invocation-count 3}))))))
 
-        trigger-channel (async/chan 10)
-        shutdown-channel
-        (maintenance/maintainer
-          registry-store context interval trigger-channel)]
-
-    (async/<!! (async/timeout 150))
-
-    (let [triggers
-          (<!!-or-timeout (async/into [] (async/take 3 trigger-channel)))]
-      (is (= [{:registry registry :context context}
-              {:registry registry :context context}
-              {:registry registry :context context}]
-            triggers)))
-
-    (async/close! shutdown-channel)))
-
-(deftest maintainer-closes-trigger-channel-when-shutdown-channel-closed
-  (let [context {:some "context"}
-        interval (t/new-duration 200 :millis)
-
-        check (checks/background-check :thing
-                (fn [_ result-cb] (result-cb (results/healthy))))
-
-        registry (-> (registry/empty-registry)
-                   (registry/with-check check))
-
-        registry-store (atom registry)
-
-        trigger-channel (async/chan 10)
-        shutdown-channel
-        (maintenance/maintainer
-          registry-store context interval trigger-channel)]
-
-    (async/close! shutdown-channel)
-
-    (is (nil? (<!!-or-timeout trigger-channel)))))
+    (maintenance/shutdown maintenance-pipeline)))

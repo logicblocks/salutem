@@ -7,21 +7,21 @@
    [salutem.checks :as checks]
    [salutem.registry :as registry]))
 
-(defn evaluator
-  ([evaluation-channel]
-   (evaluator evaluation-channel (async/chan 1)))
-  ([evaluation-channel result-channel]
-   (async/go
-     (loop []
-       (let [{:keys [check context]
-              :or   {context {}}
-              :as   evaluation-message} (async/<! evaluation-channel)]
-         (if evaluation-message
-           (do
-             (checks/attempt check context result-channel)
-             (recur))
-           (async/close! result-channel)))))
-   result-channel))
+(defn maintainer [registry-store context interval trigger-channel]
+  (let [interval-millis (t/millis interval)
+        shutdown-channel (async/chan)]
+    (async/go
+      (loop []
+        (async/alt!
+          (async/timeout interval-millis)
+          (do
+            (async/>! trigger-channel
+              {:registry @registry-store :context context})
+            (recur))
+
+          shutdown-channel
+          (async/close! trigger-channel))))
+    shutdown-channel))
 
 (defn refresher
   ([trigger-channel]
@@ -40,6 +40,22 @@
            (async/close! evaluation-channel)))))
    evaluation-channel))
 
+(defn evaluator
+  ([evaluation-channel]
+   (evaluator evaluation-channel (async/chan 1)))
+  ([evaluation-channel result-channel]
+   (async/go
+     (loop []
+       (let [{:keys [check context]
+              :or   {context {}}
+              :as   evaluation-message} (async/<! evaluation-channel)]
+         (if evaluation-message
+           (do
+             (checks/attempt check context result-channel)
+             (recur))
+           (async/close! result-channel)))))
+   result-channel))
+
 (defn updater [registry-store result-channel]
   (async/go
     (loop []
@@ -50,18 +66,18 @@
             registry/with-cached-result check result)
           (recur))))))
 
-(defn maintainer [registry-store context interval trigger-channel]
-  (let [interval-millis (t/millis interval)
-        shutdown-channel (async/chan)]
-    (async/go
-      (loop []
-        (async/alt!
-          (async/timeout interval-millis)
-          (do
-            (async/>! trigger-channel
-              {:registry @registry-store :context context})
-            (recur))
+(defn maintain
+  [registry-store
+   {:keys [context interval]
+    :or   {context  {}
+           interval (t/new-duration 200 :millis)}}]
+  (let [trigger-channel (async/chan (async/sliding-buffer 1))
+        evaluation-channel (async/chan 10)
+        result-channel (async/chan 10)]
+    (updater registry-store result-channel)
+    (evaluator evaluation-channel result-channel)
+    (refresher trigger-channel evaluation-channel)
+    (maintainer registry-store context interval trigger-channel)))
 
-          shutdown-channel
-          (async/close! trigger-channel))))
-    shutdown-channel))
+(defn shutdown [shutdown-channel]
+  (async/close! shutdown-channel))
