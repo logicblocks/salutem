@@ -68,16 +68,20 @@
 
 (defn maintain
   [registry-store
-   {:keys [context interval]
-    :or   {context  {}
-           interval (t/new-duration 200 :millis)}}]
-  (let [trigger-channel (async/chan (async/sliding-buffer 1))
-        evaluation-channel (async/chan 10)
-        result-channel (async/chan 10)]
-    (updater registry-store result-channel)
-    (evaluator evaluation-channel result-channel)
-    (refresher trigger-channel evaluation-channel)
-    (maintainer registry-store context interval trigger-channel)))
+   {:keys [context
+           interval
+           trigger-channel
+           evaluation-channel
+           result-channel]
+    :or   {context            {}
+           interval           (t/new-duration 200 :millis)
+           trigger-channel    (async/chan (async/sliding-buffer 1))
+           evaluation-channel (async/chan 10)
+           result-channel     (async/chan 10)}}]
+  (updater registry-store result-channel)
+  (evaluator evaluation-channel result-channel)
+  (refresher trigger-channel evaluation-channel)
+  (maintainer registry-store context interval trigger-channel))
 
 (defn shutdown [shutdown-channel]
   (async/close! shutdown-channel))
