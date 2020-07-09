@@ -177,3 +177,85 @@
 
         results (registry/resolve-checks registry)]
     (is (= {:thing-1 result-1 :thing-2 result-2} results))))
+
+(deftest resolves-all-realtime-checks-every-time
+  (let [check-fn-1 (spy/spy
+                     (fn [_ result-cb]
+                       (result-cb (results/healthy))))
+        check-fn-2 (spy/spy
+                     (fn [_ result-cb]
+                       (result-cb (results/healthy))))
+
+        check-1 (checks/realtime-check :thing-1 check-fn-1)
+        check-2 (checks/realtime-check :thing-2 check-fn-2)
+
+        registry (-> (registry/empty-registry)
+                   (registry/with-check check-1)
+                   (registry/with-check check-2))
+
+        resolved-results-1 (registry/resolve-checks registry)
+        _ (Thread/sleep 10)
+        resolved-results-2 (registry/resolve-checks registry)]
+    (is (= (count (spy/calls check-fn-1)) 2))
+    (is (results/healthy? (:thing-1 resolved-results-1)))
+    (is (results/healthy? (:thing-2 resolved-results-1)))
+
+    (is (= (count (spy/calls check-fn-2)) 2))
+    (is (results/healthy? (:thing-1 resolved-results-2)))
+    (is (results/healthy? (:thing-2 resolved-results-2)))
+
+    (is (t/>
+          (get-in resolved-results-2 [:thing-1 :evaluated-at])
+          (get-in resolved-results-1 [:thing-1 :evaluated-at])))
+    (is (t/>
+          (get-in resolved-results-2 [:thing-2 :evaluated-at])
+          (get-in resolved-results-1 [:thing-2 :evaluated-at])))))
+
+(deftest resolves-background-checks-when-no-cached-result-available
+  (let [check-fn-1 (spy/spy
+                     (fn [_ result-cb]
+                       (result-cb (results/unhealthy))))
+        check-fn-2 (spy/spy
+                     (fn [_ result-cb]
+                       (result-cb (results/healthy))))
+
+        check-1 (checks/background-check :thing-1 check-fn-1)
+        check-2 (checks/background-check :thing-2 check-fn-2)
+
+        registry (-> (registry/empty-registry)
+                   (registry/with-check check-1)
+                   (registry/with-check check-2))
+
+        resolved-results (registry/resolve-checks registry)]
+    (is (= (count (spy/calls check-fn-1)) 1))
+    (is (= (count (spy/calls check-fn-2)) 1))
+
+    (is (results/unhealthy? (:thing-1 resolved-results)))
+    (is (results/healthy? (:thing-2 resolved-results)))))
+
+(deftest resolves-background-checks-as-previous-results-when-available
+  (let [check-fn-1 (spy/spy
+                     (fn [_ result-cb]
+                       (result-cb (results/unhealthy))))
+        check-fn-2 (spy/spy
+                     (fn [_ result-cb]
+                       (result-cb (results/healthy))))
+
+        check-1 (checks/background-check :thing-1 check-fn-1)
+        check-2 (checks/background-check :thing-2 check-fn-2)
+
+        result-1 (results/healthy)
+        result-2 (results/unhealthy)
+
+        registry (-> (registry/empty-registry)
+                   (registry/with-check check-1)
+                   (registry/with-check check-2)
+                   (registry/with-cached-result check-1 result-1)
+                   (registry/with-cached-result check-2 result-2))
+
+        resolved-results (registry/resolve-checks registry)]
+    (is (= (count (spy/calls check-fn-1)) 0))
+    (is (= (count (spy/calls check-fn-2)) 0))
+
+    (is (results/healthy? (:thing-1 resolved-results)))
+    (is (results/unhealthy? (:thing-2 resolved-results)))))
