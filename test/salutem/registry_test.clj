@@ -159,3 +159,21 @@
         resolved-result (registry/resolve-check registry :thing)]
     (is (= (count (spy/calls check-fn)) 0))
     (is (results/healthy? resolved-result))))
+
+(deftest resolves-all-checks-in-the-registry
+  (let [result-1 (results/unhealthy)
+        result-2 (results/healthy)
+
+        check-1 (checks/background-check :thing-1
+                  (fn [_ result-cb]
+                    (result-cb result-1)))
+        check-2 (checks/realtime-check :thing-2
+                  (fn [_ result-cb]
+                    (result-cb result-2)))
+
+        registry (-> (registry/empty-registry)
+                   (registry/with-check check-1)
+                   (registry/with-check check-2))
+
+        results (registry/resolve-checks registry)]
+    (is (= {:thing-1 result-1 :thing-2 result-2} results))))

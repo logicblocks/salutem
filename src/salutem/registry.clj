@@ -44,3 +44,13 @@
      (if (or (checks/realtime? check) (not result))
        (checks/evaluate check context)
        result))))
+
+(defn resolve-checks
+  ([registry]
+   (resolve-checks registry {}))
+  ([registry context]
+   (into {}
+     (map
+       (fn [check-name]
+         [check-name (resolve-check registry check-name context)])
+       (check-names registry)))))

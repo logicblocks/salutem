@@ -35,6 +35,7 @@
 (def outdated-checks registry/outdated-checks)
 
 (def resolve-check registry/resolve-check)
+(def resolve-checks registry/resolve-checks)
 
 ; maintenance
 (def maintain maintenance/maintain)
