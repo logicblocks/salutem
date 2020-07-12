@@ -70,7 +70,8 @@
    :doc-paths   ["docs"]
    :source-uri  "https://github.com/logicblocks/salutem/blob/{version}/{filepath}#L{line}"}
 
-  :cljfmt {:indents ^:replace {#".*" [[:inner 0]]}}
+  :cljfmt {:indents {#".*"     [[:inner 0]]
+                     defrecord [[:block 1] [:inner 1]]}}
 
   :eastwood {:config-files ["config/linter.clj"]}
 
