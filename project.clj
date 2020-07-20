@@ -35,6 +35,7 @@
              :eftest       {:multithread? false}}]
    :test
    [:shared {:eftest {:multithread? false}}]
+
    :prerelease
    {:release-tasks
     [["shell" "git" "diff" "--exit-code"]
@@ -43,6 +44,7 @@
      ["vcs" "commit" "Pre-release version %s [skip ci]"]
      ["vcs" "tag"]
      ["deploy"]]}
+   
    :release
    {:release-tasks
     [["shell" "git" "diff" "--exit-code"]
