@@ -22,13 +22,14 @@
 
   :profiles
   {:shared
-   {:dependencies [[org.clojure/clojure "1.10.1" :scope "test"]
-                   [org.clojure/tools.trace "0.7.10" :scope "test"]
+   ^{:pom-scope :test}
+   {:dependencies [[org.clojure/clojure "1.10.1"]
+                   [org.clojure/tools.trace "0.7.10"]
 
-                   [nrepl "0.7.0" :scope "test"]
+                   [nrepl "0.7.0"]
 
-                   [tortue/spy "2.0.0" :scope "test"]
-                   [eftest "0.5.9" :scope "test"]]}
+                   [tortue/spy "2.0.0"]
+                   [eftest "0.5.9"]]}
    :dev
    [:shared {:source-paths ["dev"]
              :eftest       {:multithread? false}}]
