@@ -10,6 +10,7 @@
 
   :plugins [[lein-cloverage "1.1.2"]
             [lein-shell "0.5.0"]
+            [lein-cprint "1.3.3"]
             [lein-ancient "0.6.15"]
             [lein-changelog "0.3.2"]
             [lein-eftest "0.5.9"]
@@ -21,13 +22,13 @@
 
   :profiles
   {:shared
-   {:dependencies [[org.clojure/clojure "1.10.1"]
-                   [org.clojure/tools.trace "0.7.10"]
+   {:dependencies [[org.clojure/clojure "1.10.1" :scope "test"]
+                   [org.clojure/tools.trace "0.7.10" :scope "test"]
 
-                   [nrepl "0.7.0"]
+                   [nrepl "0.7.0" :scope "test"]
 
-                   [tortue/spy "2.0.0"]
-                   [eftest "0.5.9"]]}
+                   [tortue/spy "2.0.0" :scope "test"]
+                   [eftest "0.5.9" :scope "test"]]}
    :dev
    [:shared {:source-paths ["dev"]
              :eftest       {:multithread? false}}]
