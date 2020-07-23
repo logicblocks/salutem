@@ -2,25 +2,43 @@
   (:require
    [clojure.core.async :as async]
 
+   [cartus.core :as log]
+
    [tick.alpha.api :as t]
 
    [salutem.checks :as checks]
    [salutem.registry :as registry]))
 
 (defn maintainer [registry-store context interval trigger-channel]
-  (let [interval-millis (t/millis interval)
+  (let [{:keys [logger]} context
+        initialisation-time (t/now)
+        interval-millis (t/millis interval)
+        cycle-counter (atom 0)
         shutdown-channel (async/chan)]
     (async/go
       (loop []
         (async/alt!
           (async/timeout interval-millis)
-          (do
+          (let [cycle (swap! cycle-counter inc)]
+            (when logger
+              (log/info logger ::maintainer.triggering
+                {:initialised-at initialisation-time
+                 :interval       interval
+                 :cycle          cycle}))
             (async/>! trigger-channel
-              {:registry @registry-store :context context})
+              {:registry @registry-store
+               :context  (assoc context ::cycle cycle)})
             (recur))
 
           shutdown-channel
-          (async/close! trigger-channel))))
+          (do
+            (async/close! trigger-channel)
+            (when logger
+              (log/info logger ::maintainer.shutdown
+                {:initialised-at initialisation-time
+                 :shutdown-at    (t/now)
+                 :cycles         (deref cycle-counter)
+                 :interval       interval}))))))
     shutdown-channel))
 
 (defn refresher

@@ -3,11 +3,14 @@
    [clojure.test :refer :all]
    [clojure.core.async :as async]
 
+   [tick.alpha.api :as t]
+
+   [cartus.test :as cartus-test]
+
    [salutem.checks :as checks]
    [salutem.results :as results]
    [salutem.maintenance :as maintenance]
-   [salutem.registry :as registry]
-   [tick.core :as t]))
+   [salutem.registry :as registry]))
 
 (defn <!!-or-timeout
   ([chan]
@@ -41,10 +44,54 @@
 
     (let [triggers
           (<!!-or-timeout (async/into [] (async/take 3 trigger-channel)))]
-      (is (= [{:registry registry :context context}
-              {:registry registry :context context}
-              {:registry registry :context context}]
+      (is (= [{:registry registry
+               :context  (assoc context ::maintenance/cycle 1)}
+              {:registry registry
+               :context  (assoc context ::maintenance/cycle 2)}
+              {:registry registry
+               :context  (assoc context ::maintenance/cycle 3)}]
             triggers)))
+
+    (async/close! shutdown-channel)))
+
+(deftest maintainer-logs-event-every-interval-when-logger-in-context
+  (let [logger (cartus-test/logger)
+        context {:some   "context"
+                 :logger logger}
+        interval (t/new-duration 50 :millis)
+
+        registry (registry/empty-registry)
+        registry-store (atom registry)
+
+        trigger-channel (async/chan 10)
+        shutdown-channel
+        (t/with-clock (t/clock "2020-07-23T21:41:12.283Z")
+          (maintenance/maintainer
+            registry-store context interval trigger-channel))]
+
+    (async/<!! (async/timeout 120))
+
+    (is (= [{:context
+             {:cycle          1
+              :interval       #time/duration "PT0.05S"
+              :initialised-at #time/instant "2020-07-23T21:41:12.283Z"}
+             :level :info
+             :meta
+             {:column 15
+              :line   24
+              :ns     (find-ns 'salutem.maintenance)}
+             :type  :salutem.maintenance/maintainer.triggering}
+            {:context
+             {:cycle          2
+              :interval       #time/duration "PT0.05S"
+              :initialised-at #time/instant "2020-07-23T21:41:12.283Z"}
+             :level :info
+             :meta
+             {:column 15
+              :line   24
+              :ns     (find-ns 'salutem.maintenance)}
+             :type  :salutem.maintenance/maintainer.triggering}]
+          (cartus-test/events logger)))
 
     (async/close! shutdown-channel)))
 
@@ -68,6 +115,38 @@
     (async/close! shutdown-channel)
 
     (is (nil? (<!!-or-timeout trigger-channel)))))
+
+(deftest maintainer-logs-event-on-shutdown-when-logger-in-context
+  (let [logger (cartus-test/logger)
+        context {:some   "context"
+                 :logger logger}
+        interval (t/new-duration 200 :millis)
+
+        registry (registry/empty-registry)
+        registry-store (atom registry)
+
+        trigger-channel (async/chan 10)
+        shutdown-channel
+        (t/with-clock (t/clock "2020-07-23T21:41:12.283Z")
+          (maintenance/maintainer
+            registry-store context interval trigger-channel))]
+
+    (async/close! shutdown-channel)
+
+    (async/<!! (async/timeout 50))
+
+    (is (= [{:context
+             {:initialised-at #time/instant "2020-07-23T21:41:12.283Z"
+              :shutdown-at    #time/instant "2020-07-23T21:41:12.283Z"
+              :interval       #time/duration "PT0.2S"
+              :cycles         0}
+             :meta
+             {:column 15
+              :line   37
+              :ns     (find-ns 'salutem.maintenance)}
+             :level :info
+             :type  :salutem.maintenance/maintainer.shutdown}]
+          (cartus-test/events logger)))))
 
 (deftest refresher-puts-single-outdated-check-to-evaluation-channel
   (let [context {:some "context"}
@@ -98,7 +177,7 @@
     (async/close! trigger-channel)))
 
 (deftest refresher-puts-many-outdated-checks-to-evaluation-channel
-  (let [context {:some "context"}
+  (let [context {:some " context "}
 
         check-1
         (checks/background-check :thing-1
@@ -145,7 +224,7 @@
             evaluations)))))
 
 (deftest refresher-puts-to-returned-evaluation-channel-when-none-provided
-  (let [context {:some "context"}
+  (let [context {:some " context "}
 
         check
         (checks/background-check :thing
@@ -180,7 +259,7 @@
     (is (nil? (<!!-or-timeout evaluation-channel)))))
 
 (deftest evaluator-evaluates-single-check
-  (let [context {:some "context"}
+  (let [context {:some " context "}
 
         check (checks/background-check :thing
                 (fn [context result-cb]
@@ -198,12 +277,12 @@
     (let [{:keys [result]} (<!!-or-timeout result-channel)]
       (is (results/unhealthy? result))
       (is (= (:latency result) (t/new-duration 1 :seconds)))
-      (is (= (:some result) "context")))
+      (is (= (:some result) " context ")))
 
     (async/close! evaluation-channel)))
 
 (deftest evaluator-evaluates-multiple-checks
-  (let [context {:some "context"}
+  (let [context {:some " context "}
 
         check-1 (checks/background-check :thing-1
                   (fn [context result-cb]
@@ -243,15 +322,15 @@
             check-3-result (find-result results :thing-3)]
         (is (results/unhealthy? check-1-result))
         (is (= (:latency check-1-result) (t/new-duration 1 :seconds)))
-        (is (= (:some check-1-result) "context"))
+        (is (= (:some check-1-result) " context "))
 
         (is (results/healthy? check-2-result))
         (is (= (:latency check-2-result) (t/new-duration 120 :millis)))
-        (is (= (:some check-2-result) "context"))
+        (is (= (:some check-2-result) " context "))
 
         (is (results/unhealthy? check-3-result))
         (is (= (:latency check-3-result) (t/new-duration 2 :seconds)))
-        (is (= (:some check-3-result) "context"))))
+        (is (= (:some check-3-result) " context "))))
 
     (async/close! evaluation-channel)))
 
@@ -277,7 +356,7 @@
     (async/close! evaluation-channel)))
 
 (deftest evaluator-evaluates-to-returned-result-channel-when-none-provided
-  (let [context {:some "context"}
+  (let [context {:some " context "}
 
         check (checks/background-check :thing
                 (fn [context result-cb]
@@ -294,7 +373,7 @@
     (let [{:keys [result]} (<!!-or-timeout result-channel)]
       (is (results/unhealthy? result))
       (is (= (:latency result) (t/new-duration 1 :seconds)))
-      (is (= (:some result) "context")))
+      (is (= (:some result) " context ")))
 
     (async/close! evaluation-channel)))
 
@@ -350,7 +429,7 @@
         result-1 (results/healthy
                    {:latency (t/new-duration 267 :millis)})
         result-2 (results/unhealthy
-                   {:version "1.2.3"})
+                   {:version " 1.2.3 "})
         result-3 (results/unhealthy
                    {:items 1432})
 
@@ -395,7 +474,7 @@
                   (swap! check-count inc)
                   (result-cb
                     (results/healthy
-                      (merge context
+                      (merge (select-keys context [:some])
                         {:invocation-count @check-count}))))
                 {:ttl (t/new-duration 25 :millis)})
 
@@ -404,7 +483,7 @@
 
         registry-store (atom registry)
 
-        context {:some "context"}
+        context {:some " context "}
         interval (t/new-duration 50 :millis)
 
         maintenance-pipeline
@@ -419,6 +498,7 @@
       (is (=
             (time-free (registry/find-cached-result @registry-store :thing))
             (time-free (results/healthy
-                         (merge context {:invocation-count 3}))))))
+                         (merge context
+                           {:invocation-count 3}))))))
 
     (maintenance/shutdown maintenance-pipeline)))

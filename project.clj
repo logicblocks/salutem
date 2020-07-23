@@ -6,6 +6,9 @@
             :url  "https://opensource.org/licenses/MIT"}
 
   :dependencies [[org.clojure/core.async "1.2.603"]
+
+                 [io.logicblocks/cartus.core "0.1.10"]
+
                  [tick "0.4.26-alpha"]]
 
   :plugins [[lein-cloverage "1.1.2"]
@@ -26,6 +29,8 @@
    {:dependencies [[org.clojure/clojure "1.10.1"]
                    [org.clojure/tools.trace "0.7.10"]
 
+                   [io.logicblocks/cartus.test "0.1.10"]
+
                    [nrepl "0.7.0"]
 
                    [tortue/spy "2.0.0"]
@@ -44,7 +49,7 @@
      ["vcs" "commit" "Pre-release version %s [skip ci]"]
      ["vcs" "tag"]
      ["deploy"]]}
-   
+
    :release
    {:release-tasks
     [["shell" "git" "diff" "--exit-code"]
@@ -75,7 +80,8 @@
    :source-uri  "https://github.com/logicblocks/salutem/blob/{version}/{filepath}#L{line}"}
 
   :cljfmt {:indents {#".*"     [[:inner 0]]
-                     defrecord [[:block 1] [:inner 1]]}}
+                     defrecord [[:block 1] [:inner 1]]
+                     deftype   [[:block 1] [:inner 1]]}}
 
   :eastwood {:config-files ["config/linter.clj"]}
 
