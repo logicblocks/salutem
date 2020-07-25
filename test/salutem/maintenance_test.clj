@@ -5,7 +5,9 @@
 
    [tick.alpha.api :as t]
 
+   [cartus.core :as cartus-core]
    [cartus.test :as cartus-test]
+   [cartus.null :as cartus-null]
 
    [salutem.checks :as checks]
    [salutem.results :as results]
@@ -23,8 +25,33 @@
               {:channel chan
                :timeout (t/millis timeout)})))))
 
+(deftest maintainer-logs-event-on-start
+  (let [logger (cartus-test/logger)
+        dependencies {:logger logger}
+        context {:some "context"}
+        interval (t/new-duration 50 :millis)
+
+        registry (registry/empty-registry)
+        registry-store (atom registry)
+
+        trigger-channel (async/chan 10)
+        shutdown-channel
+        (maintenance/maintainer dependencies
+          registry-store context interval trigger-channel)]
+    (is (= [{:context {:interval #time/duration "PT0.05S"}
+             :level   :info
+             :meta    {:column 5
+                       :line   18
+                       :ns     (find-ns 'salutem.maintenance)}
+             :type    :salutem.maintenance/maintainer.starting}]
+          (cartus-test/events logger)))
+
+    (async/close! shutdown-channel)))
+
 (deftest maintainer-puts-trigger-on-trigger-channel-every-interval
-  (let [context {:some "context"}
+  (let [logger (cartus-null/logger)
+        dependencies {:logger logger}
+        context {:some "context"}
         interval (t/new-duration 50 :millis)
 
         check (checks/background-check :thing
@@ -37,27 +64,33 @@
 
         trigger-channel (async/chan 10)
         shutdown-channel
-        (maintenance/maintainer
+        (maintenance/maintainer dependencies
           registry-store context interval trigger-channel)]
 
     (async/<!! (async/timeout 150))
 
     (let [triggers
           (<!!-or-timeout (async/into [] (async/take 3 trigger-channel)))]
-      (is (= [{:registry registry
-               :context  (assoc context ::maintenance/cycle 1)}
-              {:registry registry
-               :context  (assoc context ::maintenance/cycle 2)}
-              {:registry registry
-               :context  (assoc context ::maintenance/cycle 3)}]
+      (is (= [{:trigger-id 1
+               :registry   registry
+               :context    context}
+              {:trigger-id 2
+               :registry   registry
+               :context    context}
+              {:trigger-id 3
+               :registry   registry
+               :context    context}]
             triggers)))
 
     (async/close! shutdown-channel)))
 
 (deftest maintainer-logs-event-every-interval-when-logger-in-context
-  (let [logger (cartus-test/logger)
-        context {:some   "context"
-                 :logger logger}
+  (let [test-logger (cartus-test/logger)
+        filtered-logger (cartus-core/with-types-retained
+                          test-logger
+                          #{:salutem.maintenance/maintainer.triggering})
+        dependencies {:logger filtered-logger}
+        context {:some "context"}
         interval (t/new-duration 50 :millis)
 
         registry (registry/empty-registry)
@@ -66,37 +99,32 @@
         trigger-channel (async/chan 10)
         shutdown-channel
         (t/with-clock (t/clock "2020-07-23T21:41:12.283Z")
-          (maintenance/maintainer
+          (maintenance/maintainer dependencies
             registry-store context interval trigger-channel))]
 
     (async/<!! (async/timeout 120))
 
-    (is (= [{:context
-             {:cycle          1
-              :interval       #time/duration "PT0.05S"
-              :initialised-at #time/instant "2020-07-23T21:41:12.283Z"}
-             :level :info
-             :meta
-             {:column 15
-              :line   24
-              :ns     (find-ns 'salutem.maintenance)}
-             :type  :salutem.maintenance/maintainer.triggering}
+    (is (= [{:context {:trigger-id 1}
+             :level   :info
+             :meta    {:column 13
+                       :line   25
+                       :ns     (find-ns 'salutem.maintenance)}
+             :type    :salutem.maintenance/maintainer.triggering}
             {:context
-             {:cycle          2
-              :interval       #time/duration "PT0.05S"
-              :initialised-at #time/instant "2020-07-23T21:41:12.283Z"}
+             {:trigger-id 2}
              :level :info
-             :meta
-             {:column 15
-              :line   24
-              :ns     (find-ns 'salutem.maintenance)}
+             :meta  {:column 13
+                     :line   25
+                     :ns     (find-ns 'salutem.maintenance)}
              :type  :salutem.maintenance/maintainer.triggering}]
-          (cartus-test/events logger)))
+          (cartus-test/events test-logger)))
 
     (async/close! shutdown-channel)))
 
 (deftest maintainer-closes-trigger-channel-when-shutdown-channel-closed
-  (let [context {:some "context"}
+  (let [logger (cartus-null/logger)
+        dependencies {:logger logger}
+        context {:some "context"}
         interval (t/new-duration 200 :millis)
 
         check (checks/background-check :thing
@@ -109,7 +137,7 @@
 
         trigger-channel (async/chan 10)
         shutdown-channel
-        (maintenance/maintainer
+        (maintenance/maintainer dependencies
           registry-store context interval trigger-channel)]
 
     (async/close! shutdown-channel)
@@ -117,9 +145,12 @@
     (is (nil? (<!!-or-timeout trigger-channel)))))
 
 (deftest maintainer-logs-event-on-shutdown-when-logger-in-context
-  (let [logger (cartus-test/logger)
-        context {:some   "context"
-                 :logger logger}
+  (let [test-logger (cartus-test/logger)
+        filtered-logger (cartus-core/with-types-retained
+                          test-logger
+                          #{:salutem.maintenance/maintainer.stopped})
+        dependencies {:logger filtered-logger}
+        context {:some "context"}
         interval (t/new-duration 200 :millis)
 
         registry (registry/empty-registry)
@@ -128,28 +159,79 @@
         trigger-channel (async/chan 10)
         shutdown-channel
         (t/with-clock (t/clock "2020-07-23T21:41:12.283Z")
-          (maintenance/maintainer
+          (maintenance/maintainer dependencies
             registry-store context interval trigger-channel))]
 
     (async/close! shutdown-channel)
 
     (async/<!! (async/timeout 50))
 
-    (is (= [{:context
-             {:initialised-at #time/instant "2020-07-23T21:41:12.283Z"
-              :shutdown-at    #time/instant "2020-07-23T21:41:12.283Z"
-              :interval       #time/duration "PT0.2S"
-              :cycles         0}
-             :meta
-             {:column 15
-              :line   37
-              :ns     (find-ns 'salutem.maintenance)}
-             :level :info
-             :type  :salutem.maintenance/maintainer.shutdown}]
-          (cartus-test/events logger)))))
+    (is (= [{:context {:triggers-sent 0}
+             :meta    {:column 13
+                       :line   36
+                       :ns     (find-ns 'salutem.maintenance)}
+             :level   :info
+             :type    :salutem.maintenance/maintainer.stopped}]
+          (cartus-test/events test-logger)))))
+
+(deftest refresher-logs-event-on-start
+  (let [logger (cartus-test/logger)
+        dependencies {:logger logger}
+
+        trigger-channel (async/chan)
+        evaluation-channel (async/chan)]
+    (maintenance/refresher dependencies
+      trigger-channel evaluation-channel)
+
+    (is (= [{:context {}
+             :meta    {:column 6
+                       :line   45
+                       :ns     (find-ns 'salutem.maintenance)}
+             :level   :info
+             :type    :salutem.maintenance/refresher.starting}]
+          (cartus-test/events logger)))
+
+    (async/close! trigger-channel)))
+
+(deftest refresher-logs-event-on-receipt-of-trigger
+  (let [test-logger (cartus-test/logger)
+        filtered-logger (cartus-core/with-types-retained test-logger
+                          #{:salutem.maintenance/refresher.triggered})
+        dependencies {:logger filtered-logger}
+        context {:some "context"}
+        trigger-id 1
+
+        registry
+        (registry/empty-registry)
+
+        trigger-channel (async/chan)
+        evaluation-channel (async/chan)]
+    (t/with-clock (t/clock "2020-07-23T21:41:12.283Z")
+      (maintenance/refresher dependencies
+        trigger-channel evaluation-channel))
+
+    (async/put! trigger-channel
+      {:trigger-id trigger-id
+       :registry   registry
+       :context    context})
+
+    (async/<!! (async/timeout 50))
+
+    (is (= [{:context {:trigger-id 1}
+             :meta    {:column 16
+                       :line   53
+                       :ns     (find-ns 'salutem.maintenance)}
+             :level   :info
+             :type    :salutem.maintenance/refresher.triggered}]
+          (cartus-test/events test-logger)))
+
+    (async/close! trigger-channel)))
 
 (deftest refresher-puts-single-outdated-check-to-evaluation-channel
-  (let [context {:some "context"}
+  (let [logger (cartus-null/logger)
+        dependencies {:logger logger}
+        context {:some "context"}
+        trigger-id 1
 
         check
         (checks/background-check :thing
@@ -166,18 +248,26 @@
 
         trigger-channel (async/chan)
         evaluation-channel (async/chan)]
-    (maintenance/refresher trigger-channel evaluation-channel)
+    (maintenance/refresher dependencies
+      trigger-channel evaluation-channel)
 
-    (async/put! trigger-channel {:registry registry :context context})
+    (async/put! trigger-channel
+      {:trigger-id trigger-id
+       :registry   registry
+       :context    context})
 
     (let [evaluation (<!!-or-timeout evaluation-channel)]
+      (is (= (:trigger-id evaluation) trigger-id))
       (is (= (:check evaluation) check))
       (is (= (:context evaluation) context)))
 
     (async/close! trigger-channel)))
 
 (deftest refresher-puts-many-outdated-checks-to-evaluation-channel
-  (let [context {:some " context "}
+  (let [logger (cartus-null/logger)
+        dependencies {:logger logger}
+        context {:some " context "}
+        trigger-id 1
 
         check-1
         (checks/background-check :thing-1
@@ -213,18 +303,93 @@
 
         trigger-channel (async/chan)
         evaluation-channel (async/chan)]
-    (maintenance/refresher trigger-channel evaluation-channel)
+    (maintenance/refresher dependencies
+      trigger-channel evaluation-channel)
 
-    (async/put! trigger-channel {:registry registry :context context})
+    (async/put! trigger-channel
+      {:trigger-id trigger-id
+       :registry   registry
+       :context    context})
     (async/close! trigger-channel)
 
     (let [evaluations (<!!-or-timeout (async/into #{} evaluation-channel))]
-      (is (= #{{:check check-1 :context context}
-               {:check check-3 :context context}}
+      (is (= #{{:trigger-id trigger-id :check check-1 :context context}
+               {:trigger-id trigger-id :check check-3 :context context}}
             evaluations)))))
 
+(deftest refresher-logs-event-on-triggering-evaluation-for-each-check
+  (let [test-logger (cartus-test/logger)
+        filtered-logger (cartus-core/with-types-retained test-logger
+                          #{:salutem.maintenance/refresher.evaluating})
+        dependencies {:logger filtered-logger}
+        context {:some "context"}
+        trigger-id 1
+
+        check-1
+        (checks/background-check :thing-1
+          (fn [_ result-cb] (result-cb (results/healthy)))
+          {:ttl (t/new-duration 30 :seconds)})
+        check-2
+        (checks/background-check :thing-2
+          (fn [_ result-cb] (result-cb (results/healthy)))
+          {:ttl (t/new-duration 1 :minutes)})
+        check-3
+        (checks/background-check :thing-3
+          (fn [_ result-cb] (result-cb (results/healthy)))
+          {:ttl (t/new-duration 45 :seconds)})
+
+        check-1-outdated-result
+        (results/healthy
+          {:evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
+        check-2-current-result
+        (results/healthy
+          {:evaluated-at (t/- (t/now) (t/new-duration 40 :seconds))})
+        check-3-outdated-result
+        (results/healthy
+          {:evaluated-at (t/- (t/now) (t/new-duration 55 :seconds))})
+
+        registry
+        (-> (registry/empty-registry)
+          (registry/with-check check-1)
+          (registry/with-check check-2)
+          (registry/with-check check-3)
+          (registry/with-cached-result check-1 check-1-outdated-result)
+          (registry/with-cached-result check-2 check-2-current-result)
+          (registry/with-cached-result check-3 check-3-outdated-result))
+
+        trigger-channel (async/chan)
+        evaluation-channel (async/chan)]
+    (maintenance/refresher dependencies
+      trigger-channel evaluation-channel)
+
+    (async/put! trigger-channel
+      {:trigger-id trigger-id
+       :registry   registry
+       :context    context})
+    (async/close! trigger-channel)
+
+    (<!!-or-timeout (async/into #{} evaluation-channel))
+
+    (is (= [{:context {:trigger-id 1
+                       :check-name (:name check-1)}
+             :meta    {:column 18
+                       :line   56
+                       :ns     (find-ns 'salutem.maintenance)}
+             :level   :info
+             :type    :salutem.maintenance/refresher.evaluating}
+            {:context {:trigger-id 1
+                       :check-name (:name check-3)}
+             :meta    {:column 18
+                       :line   56
+                       :ns     (find-ns 'salutem.maintenance)}
+             :level   :info
+             :type    :salutem.maintenance/refresher.evaluating}]
+          (cartus-test/events test-logger)))))
+
 (deftest refresher-puts-to-returned-evaluation-channel-when-none-provided
-  (let [context {:some " context "}
+  (let [logger (cartus-null/logger)
+        dependencies {:logger logger}
+        context {:some "context"}
 
         check
         (checks/background-check :thing
@@ -240,7 +405,7 @@
           (registry/with-cached-result check outdated-result))
 
         trigger-channel (async/chan)
-        evaluation-channel (maintenance/refresher trigger-channel)]
+        evaluation-channel (maintenance/refresher dependencies trigger-channel)]
     (async/put! trigger-channel {:registry registry :context context})
 
     (let [evaluation (<!!-or-timeout evaluation-channel)]
@@ -250,16 +415,22 @@
     (async/close! trigger-channel)))
 
 (deftest refresher-closes-evaluation-channel-when-trigger-channel-closed
-  (let [trigger-channel (async/chan)
+  (let [logger (cartus-null/logger)
+        dependencies {:logger logger}
+
+        trigger-channel (async/chan)
         evaluation-channel (async/chan)]
-    (maintenance/evaluator trigger-channel evaluation-channel)
+    (maintenance/evaluator dependencies
+      trigger-channel evaluation-channel)
 
     (async/close! trigger-channel)
 
     (is (nil? (<!!-or-timeout evaluation-channel)))))
 
 (deftest evaluator-evaluates-single-check
-  (let [context {:some " context "}
+  (let [logger (cartus-null/logger)
+        dependencies {:logger logger}
+        context {:some "context"}
 
         check (checks/background-check :thing
                 (fn [context result-cb]
@@ -270,19 +441,22 @@
 
         evaluation-channel (async/chan)
         result-channel (async/chan)]
-    (maintenance/evaluator evaluation-channel result-channel)
+    (maintenance/evaluator dependencies
+      evaluation-channel result-channel)
 
     (async/put! evaluation-channel {:check check :context context})
 
     (let [{:keys [result]} (<!!-or-timeout result-channel)]
       (is (results/unhealthy? result))
       (is (= (:latency result) (t/new-duration 1 :seconds)))
-      (is (= (:some result) " context ")))
+      (is (= (:some result) "context")))
 
     (async/close! evaluation-channel)))
 
 (deftest evaluator-evaluates-multiple-checks
-  (let [context {:some " context "}
+  (let [logger (cartus-null/logger)
+        dependencies {:logger logger}
+        context {:some "context"}
 
         check-1 (checks/background-check :thing-1
                   (fn [context result-cb]
@@ -305,7 +479,8 @@
 
         evaluation-channel (async/chan)
         result-channel (async/chan)]
-    (maintenance/evaluator evaluation-channel result-channel)
+    (maintenance/evaluator dependencies
+      evaluation-channel result-channel)
 
     (async/put! evaluation-channel {:check check-1 :context context})
     (async/put! evaluation-channel {:check check-2 :context context})
@@ -322,20 +497,23 @@
             check-3-result (find-result results :thing-3)]
         (is (results/unhealthy? check-1-result))
         (is (= (:latency check-1-result) (t/new-duration 1 :seconds)))
-        (is (= (:some check-1-result) " context "))
+        (is (= (:some check-1-result) "context"))
 
         (is (results/healthy? check-2-result))
         (is (= (:latency check-2-result) (t/new-duration 120 :millis)))
-        (is (= (:some check-2-result) " context "))
+        (is (= (:some check-2-result) "context"))
 
         (is (results/unhealthy? check-3-result))
         (is (= (:latency check-3-result) (t/new-duration 2 :seconds)))
-        (is (= (:some check-3-result) " context "))))
+        (is (= (:some check-3-result) "context"))))
 
     (async/close! evaluation-channel)))
 
 (deftest evaluator-times-out-evaluation-when-check-takes-longer-than-timeout
-  (let [check (checks/background-check :thing
+  (let [logger (cartus-null/logger)
+        dependencies {:logger logger}
+
+        check (checks/background-check :thing
                 (fn [_ result-cb]
                   (future
                     (Thread/sleep 100)
@@ -345,7 +523,8 @@
 
         evaluation-channel (async/chan)
         result-channel (async/chan)]
-    (maintenance/evaluator evaluation-channel result-channel)
+    (maintenance/evaluator dependencies
+      evaluation-channel result-channel)
 
     (async/put! evaluation-channel {:check check})
 
@@ -356,7 +535,9 @@
     (async/close! evaluation-channel)))
 
 (deftest evaluator-evaluates-to-returned-result-channel-when-none-provided
-  (let [context {:some " context "}
+  (let [logger (cartus-null/logger)
+        dependencies {:logger logger}
+        context {:some " context "}
 
         check (checks/background-check :thing
                 (fn [context result-cb]
@@ -366,7 +547,8 @@
                         {:latency (t/new-duration 1 :seconds)})))))
 
         evaluation-channel (async/chan)
-        result-channel (maintenance/evaluator evaluation-channel)]
+        result-channel (maintenance/evaluator dependencies
+                         evaluation-channel)]
 
     (async/put! evaluation-channel {:check check :context context})
 
@@ -378,16 +560,23 @@
     (async/close! evaluation-channel)))
 
 (deftest evaluator-closes-result-channel-when-evaluation-channel-closed
-  (let [evaluation-channel (async/chan)
+  (let [logger (cartus-null/logger)
+        dependencies {:logger logger}
+
+        evaluation-channel (async/chan)
         result-channel (async/chan)]
-    (maintenance/evaluator evaluation-channel result-channel)
+    (maintenance/evaluator dependencies
+      evaluation-channel result-channel)
 
     (async/close! evaluation-channel)
 
     (is (nil? (<!!-or-timeout result-channel)))))
 
 (deftest updater-adds-single-result-to-registry-in-registry-store-atom
-  (let [check (checks/background-check :thing
+  (let [logger (cartus-null/logger)
+        dependencies {:logger logger}
+
+        check (checks/background-check :thing
                 (fn [_ result-cb] (result-cb (results/healthy))))
         result (results/healthy
                  {:latency (t/new-duration 267 :millis)})
@@ -399,7 +588,8 @@
         updated? (atom false)
 
         result-channel (async/chan)]
-    (maintenance/updater registry-store result-channel)
+    (maintenance/updater dependencies
+      registry-store result-channel)
 
     (add-watch registry-store :watcher
       (fn [_ _ _ _]
@@ -419,7 +609,10 @@
     (async/close! result-channel)))
 
 (deftest updater-adds-many-results-to-registry-in-registry-store-atom
-  (let [check-1 (checks/background-check :thing-1
+  (let [logger (cartus-null/logger)
+        dependencies {:logger logger}
+
+        check-1 (checks/background-check :thing-1
                   (fn [_ result-cb] (result-cb (results/healthy))))
         check-2 (checks/background-check :thing-2
                   (fn [_ result-cb] (result-cb (results/healthy))))
@@ -442,7 +635,8 @@
         updated-count (atom 0)
 
         result-channel (async/chan 10)]
-    (maintenance/updater registry-store result-channel)
+    (maintenance/updater dependencies
+      registry-store result-channel)
 
     (add-watch registry-store :watcher
       (fn [_ _ _ _]

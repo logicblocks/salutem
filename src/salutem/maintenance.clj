@@ -3,65 +3,71 @@
    [clojure.core.async :as async]
 
    [cartus.core :as log]
+   [cartus.null :as null]
 
    [tick.alpha.api :as t]
 
    [salutem.checks :as checks]
    [salutem.registry :as registry]))
 
-(defn maintainer [registry-store context interval trigger-channel]
-  (let [{:keys [logger]} context
-        initialisation-time (t/now)
+(defn maintainer [dependencies registry-store context interval trigger-channel]
+  (let [logger (:logger dependencies)
         interval-millis (t/millis interval)
-        cycle-counter (atom 0)
+        trigger-counter (atom 0)
         shutdown-channel (async/chan)]
+    (log/info logger ::maintainer.starting {:interval interval})
     (async/go
       (loop []
         (async/alt!
           (async/timeout interval-millis)
-          (let [cycle (swap! cycle-counter inc)]
-            (when logger
-              (log/info logger ::maintainer.triggering
-                {:initialised-at initialisation-time
-                 :interval       interval
-                 :cycle          cycle}))
+          (let [trigger-id (swap! trigger-counter inc)
+                registry (deref registry-store)]
+            (log/info logger ::maintainer.triggering
+              {:trigger-id trigger-id})
             (async/>! trigger-channel
-              {:registry @registry-store
-               :context  (assoc context ::cycle cycle)})
+              {:trigger-id trigger-id
+               :registry   registry
+               :context    context})
             (recur))
 
           shutdown-channel
-          (do
+          (let [triggers-sent (deref trigger-counter)]
             (async/close! trigger-channel)
-            (when logger
-              (log/info logger ::maintainer.shutdown
-                {:initialised-at initialisation-time
-                 :shutdown-at    (t/now)
-                 :cycles         (deref cycle-counter)
-                 :interval       interval}))))))
+            (log/info logger ::maintainer.stopped
+              {:triggers-sent triggers-sent})))))
     shutdown-channel))
 
 (defn refresher
-  ([trigger-channel]
-   (refresher trigger-channel (async/chan 1)))
-  ([trigger-channel evaluation-channel]
-   (async/go
-     (loop []
-       (let [{:keys [registry context]
-              :or   {context {}}
-              :as   trigger-message} (async/<! trigger-channel)]
-         (if trigger-message
-           (do
-             (doseq [check (registry/outdated-checks registry)]
-               (async/>! evaluation-channel {:check check :context context}))
-             (recur))
-           (async/close! evaluation-channel)))))
+  ([dependencies trigger-channel]
+   (refresher dependencies trigger-channel (async/chan 1)))
+  ([dependencies trigger-channel evaluation-channel]
+   (let [logger (:logger dependencies)]
+     (log/info logger ::refresher.starting)
+     (async/go
+       (loop []
+         (let [{:keys [registry context trigger-id]
+                :or   {context {}}
+                :as   trigger-message} (async/<! trigger-channel)]
+           (if trigger-message
+             (do
+               (log/info logger ::refresher.triggered
+                 {:trigger-id trigger-id})
+               (doseq [check (registry/outdated-checks registry)]
+                 (log/info logger ::refresher.evaluating
+                   {:trigger-id trigger-id
+                    :check-name (:name check)})
+                 (async/>! evaluation-channel
+                   {:trigger-id trigger-id
+                    :check      check
+                    :context    context}))
+               (recur))
+             (async/close! evaluation-channel))))))
    evaluation-channel))
 
 (defn evaluator
-  ([evaluation-channel]
-   (evaluator evaluation-channel (async/chan 1)))
-  ([evaluation-channel result-channel]
+  ([dependencies evaluation-channel]
+   (evaluator dependencies evaluation-channel (async/chan 1)))
+  ([dependencies evaluation-channel result-channel]
    (async/go
      (loop []
        (let [{:keys [check context]
@@ -74,7 +80,8 @@
            (async/close! result-channel)))))
    result-channel))
 
-(defn updater [registry-store result-channel]
+(defn updater
+  [dependencies registry-store result-channel]
   (async/go
     (loop []
       (let [{:keys [check result]
@@ -96,10 +103,12 @@
            trigger-channel    (async/chan (async/sliding-buffer 1))
            evaluation-channel (async/chan 10)
            result-channel     (async/chan 10)}}]
-  (updater registry-store result-channel)
-  (evaluator evaluation-channel result-channel)
-  (refresher trigger-channel evaluation-channel)
-  (maintainer registry-store context interval trigger-channel))
+  (let [logger (get context :logger (null/logger))
+        dependencies {:logger logger}]
+    (updater dependencies registry-store result-channel)
+    (evaluator dependencies evaluation-channel result-channel)
+    (refresher dependencies trigger-channel evaluation-channel)
+    (maintainer dependencies registry-store context interval trigger-channel)))
 
 (defn shutdown [shutdown-channel]
   (async/close! shutdown-channel))
