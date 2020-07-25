@@ -370,21 +370,21 @@
 
     (<!!-or-timeout (async/into #{} evaluation-channel))
 
-    (is (= [{:context {:trigger-id 1
-                       :check-name (:name check-1)}
-             :meta    {:column 18
-                       :line   56
-                       :ns     (find-ns 'salutem.maintenance)}
-             :level   :info
-             :type    :salutem.maintenance/refresher.evaluating}
-            {:context {:trigger-id 1
-                       :check-name (:name check-3)}
-             :meta    {:column 18
-                       :line   56
-                       :ns     (find-ns 'salutem.maintenance)}
-             :level   :info
-             :type    :salutem.maintenance/refresher.evaluating}]
-          (cartus-test/events test-logger)))))
+    (is (= #{{:context {:trigger-id 1
+                        :check-name (:name check-1)}
+              :meta    {:column 18
+                        :line   56
+                        :ns     (find-ns 'salutem.maintenance)}
+              :level   :info
+              :type    :salutem.maintenance/refresher.evaluating}
+             {:context {:trigger-id 1
+                        :check-name (:name check-3)}
+              :meta    {:column 18
+                        :line   56
+                        :ns     (find-ns 'salutem.maintenance)}
+              :level   :info
+              :type    :salutem.maintenance/refresher.evaluating}}
+          (set (cartus-test/events test-logger))))))
 
 (deftest refresher-puts-to-returned-evaluation-channel-when-none-provided
   (let [logger (cartus-null/logger)
@@ -420,12 +420,57 @@
 
         trigger-channel (async/chan)
         evaluation-channel (async/chan)]
-    (maintenance/evaluator dependencies
+    (maintenance/refresher dependencies
       trigger-channel evaluation-channel)
 
     (async/close! trigger-channel)
 
     (is (nil? (<!!-or-timeout evaluation-channel)))))
+
+(deftest refresher-logs-event-on-shutdown
+  (let [test-logger (cartus-test/logger)
+        filtered-logger (cartus-core/with-types-retained
+                          test-logger
+                          #{:salutem.maintenance/refresher.stopped})
+        dependencies {:logger filtered-logger}
+
+        trigger-channel (async/chan)
+        evaluation-channel (async/chan)]
+    (maintenance/refresher dependencies
+      trigger-channel evaluation-channel)
+
+    (async/close! trigger-channel)
+
+    (async/<!! (async/timeout 50))
+
+    (is (= [{:context {}
+             :meta    {:column 16
+                       :line   66
+                       :ns     (find-ns 'salutem.maintenance)}
+             :level   :info
+             :type    :salutem.maintenance/refresher.stopped}]
+          (cartus-test/events test-logger)))))
+
+(deftest evaluator-logs-event-on-start
+  (let [test-logger (cartus-test/logger)
+        filtered-logger (cartus-core/with-types-retained test-logger
+                          #{:salutem.maintenance/evaluator.starting})
+        dependencies {:logger filtered-logger}
+
+        evaluation-channel (async/chan)
+        result-channel (async/chan)]
+    (maintenance/evaluator dependencies
+      evaluation-channel result-channel)
+
+    (is (= [{:context {}
+             :meta    {:column 6
+                       :line   74
+                       :ns     (find-ns 'salutem.maintenance)}
+             :level   :info
+             :type    :salutem.maintenance/evaluator.starting}]
+          (cartus-test/events test-logger)))
+
+    (async/close! evaluation-channel)))
 
 (deftest evaluator-evaluates-single-check
   (let [logger (cartus-null/logger)
@@ -439,12 +484,17 @@
                       (merge context
                         {:latency (t/new-duration 1 :seconds)})))))
 
+        trigger-id 1
+
         evaluation-channel (async/chan)
         result-channel (async/chan)]
     (maintenance/evaluator dependencies
       evaluation-channel result-channel)
 
-    (async/put! evaluation-channel {:check check :context context})
+    (async/put! evaluation-channel
+      {:trigger-id trigger-id
+       :check      check
+       :context    context})
 
     (let [{:keys [result]} (<!!-or-timeout result-channel)]
       (is (results/unhealthy? result))
@@ -477,14 +527,25 @@
                         (merge context
                           {:latency (t/new-duration 2 :seconds)})))))
 
+        trigger-id 1
+
         evaluation-channel (async/chan)
         result-channel (async/chan)]
     (maintenance/evaluator dependencies
       evaluation-channel result-channel)
 
-    (async/put! evaluation-channel {:check check-1 :context context})
-    (async/put! evaluation-channel {:check check-2 :context context})
-    (async/put! evaluation-channel {:check check-3 :context context})
+    (async/put! evaluation-channel
+      {:trigger-id trigger-id
+       :check      check-1
+       :context    context})
+    (async/put! evaluation-channel
+      {:trigger-id trigger-id
+       :check      check-2
+       :context    context})
+    (async/put! evaluation-channel
+      {:trigger-id trigger-id
+       :check      check-3
+       :context    context})
 
     (letfn [(find-result [results name]
               (->> results
@@ -509,6 +570,40 @@
 
     (async/close! evaluation-channel)))
 
+(deftest evaluator-logs-event-on-evaluating-check
+  (let [test-logger (cartus-test/logger)
+        filtered-logger (cartus-core/with-types-retained test-logger
+                          #{:salutem.maintenance/evaluator.evaluating})
+        dependencies {:logger filtered-logger}
+        context {:some "context"}
+
+        check (checks/background-check :thing
+                (fn [_ result-cb]
+                  (result-cb (results/healthy))))
+
+        trigger-id 1
+
+        evaluation-channel (async/chan)
+        result-channel (async/chan)]
+    (maintenance/evaluator dependencies
+      evaluation-channel result-channel)
+
+    (async/put! evaluation-channel
+      {:trigger-id trigger-id
+       :check      check
+       :context    context})
+
+    (is (= [{:context {:trigger-id trigger-id
+                       :check-name :thing}
+             :meta    {:column 16
+                       :line   82
+                       :ns     (find-ns 'salutem.maintenance)}
+             :level   :info
+             :type    :salutem.maintenance/evaluator.evaluating}]
+          (cartus-test/events test-logger)))
+
+    (async/close! evaluation-channel)))
+
 (deftest evaluator-times-out-evaluation-when-check-takes-longer-than-timeout
   (let [logger (cartus-null/logger)
         dependencies {:logger logger}
@@ -521,12 +616,16 @@
                       (results/healthy))))
                 {:timeout (t/new-duration 50 :millis)})
 
+        trigger-id 1
+
         evaluation-channel (async/chan)
         result-channel (async/chan)]
     (maintenance/evaluator dependencies
       evaluation-channel result-channel)
 
-    (async/put! evaluation-channel {:check check})
+    (async/put! evaluation-channel
+      {:trigger-id trigger-id
+       :check      check})
 
     (let [{:keys [result]} (<!!-or-timeout result-channel
                              (t/new-duration 200 :millis))]
@@ -546,11 +645,16 @@
                       (merge context
                         {:latency (t/new-duration 1 :seconds)})))))
 
+        trigger-id 1
+
         evaluation-channel (async/chan)
         result-channel (maintenance/evaluator dependencies
                          evaluation-channel)]
 
-    (async/put! evaluation-channel {:check check :context context})
+    (async/put! evaluation-channel
+      {:trigger-id trigger-id
+       :check      check
+       :context    context})
 
     (let [{:keys [result]} (<!!-or-timeout result-channel)]
       (is (results/unhealthy? result))
@@ -571,6 +675,29 @@
     (async/close! evaluation-channel)
 
     (is (nil? (<!!-or-timeout result-channel)))))
+
+(deftest evaluator-logs-event-on-shutdown
+  (let [test-logger (cartus-test/logger)
+        filtered-logger (cartus-core/with-types-retained test-logger
+                          #{:salutem.maintenance/evaluator.stopped})
+        dependencies {:logger filtered-logger}
+
+        evaluation-channel (async/chan)
+        result-channel (async/chan)]
+    (maintenance/evaluator dependencies
+      evaluation-channel result-channel)
+
+    (async/close! evaluation-channel)
+
+    (async/<!! (async/timeout 50))
+
+    (is (= [{:context {}
+             :meta    {:column 16
+                       :line   89
+                       :ns     (find-ns 'salutem.maintenance)}
+             :level   :info
+             :type    :salutem.maintenance/evaluator.stopped}]
+          (cartus-test/events test-logger)))))
 
 (deftest updater-adds-single-result-to-registry-in-registry-store-atom
   (let [logger (cartus-null/logger)

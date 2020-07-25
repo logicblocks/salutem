@@ -61,24 +61,33 @@
                     :check      check
                     :context    context}))
                (recur))
-             (async/close! evaluation-channel))))))
+             (do
+               (async/close! evaluation-channel)
+               (log/info logger ::refresher.stopped)))))))
    evaluation-channel))
 
 (defn evaluator
   ([dependencies evaluation-channel]
    (evaluator dependencies evaluation-channel (async/chan 1)))
   ([dependencies evaluation-channel result-channel]
-   (async/go
-     (loop []
-       (let [{:keys [check context]
-              :or   {context {}}
-              :as   evaluation-message} (async/<! evaluation-channel)]
-         (if evaluation-message
-           (do
-             (checks/attempt check context result-channel)
-             (recur))
-           (async/close! result-channel)))))
-   result-channel))
+   (let [logger (:logger dependencies)]
+     (log/info logger ::evaluator.starting)
+     (async/go
+       (loop []
+         (let [{:keys [check context trigger-id]
+                :or   {context {}}
+                :as   evaluation-message} (async/<! evaluation-channel)]
+           (if evaluation-message
+             (do
+               (log/info logger ::evaluator.evaluating
+                 {:trigger-id trigger-id
+                  :check-name (:name check)})
+               (checks/attempt check context result-channel)
+               (recur))
+             (do
+               (async/close! result-channel)
+               (log/info logger ::evaluator.stopped))))))
+     result-channel)))
 
 (defn updater
   [dependencies registry-store result-channel]
