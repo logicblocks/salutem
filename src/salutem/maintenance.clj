@@ -82,7 +82,8 @@
                (log/info logger ::evaluator.evaluating
                  {:trigger-id trigger-id
                   :check-name (:name check)})
-               (checks/attempt check context result-channel)
+               (checks/attempt
+                 dependencies trigger-id check context result-channel)
                (recur))
              (do
                (async/close! result-channel)
@@ -95,12 +96,13 @@
     (log/info logger ::updater.starting)
     (async/go
       (loop []
-        (let [{:keys [check result]
+        (let [{:keys [check result trigger-id]
                :as   result-message} (async/<! result-channel)]
           (if result-message
             (do
               (log/info logger ::updater.updating
-                {:check-name (:name check)
+                {:trigger-id trigger-id
+                 :check-name (:name check)
                  :result     result})
               (swap! registry-store
                 registry/with-cached-result check result)

@@ -472,6 +472,79 @@
 
     (async/close! evaluation-channel)))
 
+(deftest evaluator-logs-event-on-evaluating-check
+  (let [test-logger (cartus-test/logger)
+        filtered-logger (cartus-core/with-types-retained test-logger
+                          #{:salutem.maintenance/evaluator.evaluating})
+        dependencies {:logger filtered-logger}
+        context {:some "context"}
+
+        check (checks/background-check :thing
+                (fn [_ result-cb]
+                  (result-cb (results/healthy))))
+
+        trigger-id 1
+
+        evaluation-channel (async/chan)
+        result-channel (async/chan)]
+    (maintenance/evaluator dependencies
+      evaluation-channel result-channel)
+
+    (async/put! evaluation-channel
+      {:trigger-id trigger-id
+       :check      check
+       :context    context})
+
+    (is (= [{:context {:trigger-id trigger-id
+                       :check-name :thing}
+             :meta    {:column 16
+                       :line   82
+                       :ns     (find-ns 'salutem.maintenance)}
+             :level   :info
+             :type    :salutem.maintenance/evaluator.evaluating}]
+          (cartus-test/events test-logger)))
+
+    (async/close! evaluation-channel)))
+
+(deftest evaluator-logs-event-on-start-of-attempt
+  (let [test-logger (cartus-test/logger)
+        filtered-logger (cartus-core/with-types-retained test-logger
+                          #{:salutem.checks/attempt.starting})
+        dependencies {:logger filtered-logger}
+        context {:some "context"}
+
+        check (checks/background-check :thing
+                (fn [context result-cb]
+                  (result-cb
+                    (results/unhealthy
+                      (merge context
+                        {:latency (t/new-duration 1 :seconds)})))))
+
+        trigger-id 1
+
+        evaluation-channel (async/chan)
+        result-channel (async/chan)]
+    (maintenance/evaluator dependencies
+      evaluation-channel result-channel)
+
+    (async/put! evaluation-channel
+      {:trigger-id trigger-id
+       :check      check
+       :context    context})
+
+    (<!!-or-timeout result-channel)
+
+    (is (= [{:context {:trigger-id trigger-id
+                       :check-name :thing}
+             :meta    {:column 10
+                       :line   58
+                       :ns     (find-ns 'salutem.checks)}
+             :level   :info
+             :type    :salutem.checks/attempt.starting}]
+          (cartus-test/events test-logger)))
+
+    (async/close! evaluation-channel)))
+
 (deftest evaluator-evaluates-single-check
   (let [logger (cartus-null/logger)
         dependencies {:logger logger}
@@ -496,7 +569,8 @@
        :check      check
        :context    context})
 
-    (let [{:keys [result]} (<!!-or-timeout result-channel)]
+    (let [{:keys [result] :as result-message} (<!!-or-timeout result-channel)]
+      (is (= (:trigger-id result-message) trigger-id))
       (is (results/unhealthy? result))
       (is (= (:latency result) (t/new-duration 1 :seconds)))
       (is (= (:some result) "context")))
@@ -570,16 +644,19 @@
 
     (async/close! evaluation-channel)))
 
-(deftest evaluator-logs-event-on-evaluating-check
+(deftest evaluator-logs-event-on-attempt-completion
   (let [test-logger (cartus-test/logger)
         filtered-logger (cartus-core/with-types-retained test-logger
-                          #{:salutem.maintenance/evaluator.evaluating})
+                          #{:salutem.checks/attempt.completed})
         dependencies {:logger filtered-logger}
         context {:some "context"}
 
+        result (results/unhealthy
+                 (merge context
+                   {:latency (t/new-duration 1 :seconds)}))
         check (checks/background-check :thing
                 (fn [_ result-cb]
-                  (result-cb (results/healthy))))
+                  (result-cb result)))
 
         trigger-id 1
 
@@ -593,13 +670,16 @@
        :check      check
        :context    context})
 
+    (<!!-or-timeout result-channel)
+
     (is (= [{:context {:trigger-id trigger-id
-                       :check-name :thing}
-             :meta    {:column 16
-                       :line   82
-                       :ns     (find-ns 'salutem.maintenance)}
+                       :check-name :thing
+                       :result     result}
+             :meta    {:column 15
+                       :line   68
+                       :ns     (find-ns 'salutem.checks)}
              :level   :info
-             :type    :salutem.maintenance/evaluator.evaluating}]
+             :type    :salutem.checks/attempt.completed}]
           (cartus-test/events test-logger)))
 
     (async/close! evaluation-channel)))
@@ -627,9 +707,50 @@
       {:trigger-id trigger-id
        :check      check})
 
-    (let [{:keys [result]} (<!!-or-timeout result-channel
-                             (t/new-duration 200 :millis))]
+    (let [{:keys [result] :as result-message}
+          (<!!-or-timeout result-channel
+            (t/new-duration 200 :millis))]
+      (is (= (:trigger-id result-message) trigger-id))
       (is (results/unhealthy? result)))
+
+    (async/close! evaluation-channel)))
+
+(deftest evaluator-logs-event-on-attempt-timeout
+  (let [test-logger (cartus-test/logger)
+        filtered-logger (cartus-core/with-types-retained test-logger
+                          #{::checks/attempt.timed-out})
+        dependencies {:logger filtered-logger}
+
+        check (checks/background-check :thing
+                (fn [_ result-cb]
+                  (future
+                    (Thread/sleep 100)
+                    (result-cb
+                      (results/healthy))))
+                {:timeout (t/new-duration 50 :millis)})
+
+        trigger-id 1
+
+        evaluation-channel (async/chan)
+        result-channel (async/chan)]
+    (maintenance/evaluator dependencies
+      evaluation-channel result-channel)
+
+    (async/put! evaluation-channel
+      {:trigger-id trigger-id
+       :check      check})
+
+    (<!!-or-timeout result-channel
+      (t/new-duration 200 :millis))
+
+    (is (= [{:context {:trigger-id trigger-id
+                       :check-name :thing}
+             :meta    {:column 14
+                       :line   79
+                       :ns     (find-ns 'salutem.checks)}
+             :level   :info
+             :type    ::checks/attempt.timed-out}]
+          (cartus-test/events test-logger)))
 
     (async/close! evaluation-channel)))
 
@@ -656,7 +777,8 @@
        :check      check
        :context    context})
 
-    (let [{:keys [result]} (<!!-or-timeout result-channel)]
+    (let [{:keys [result] :as result-message} (<!!-or-timeout result-channel)]
+      (is (= (:trigger-id result-message) trigger-id))
       (is (results/unhealthy? result))
       (is (= (:latency result) (t/new-duration 1 :seconds)))
       (is (= (:some result) " context ")))
@@ -693,7 +815,7 @@
 
     (is (= [{:context {}
              :meta    {:column 16
-                       :line   89
+                       :line   90
                        :ns     (find-ns 'salutem.maintenance)}
              :level   :info
              :type    :salutem.maintenance/evaluator.stopped}]
@@ -714,7 +836,7 @@
 
     (is (= [{:context {}
              :meta    {:column 5
-                       :line   95
+                       :line   96
                        :ns     (find-ns 'salutem.maintenance)}
              :level   :info
              :type    :salutem.maintenance/updater.starting}]
@@ -733,8 +855,10 @@
 
         registry (-> (registry/empty-registry)
                    (registry/with-check check))
-
         registry-store (atom registry)
+
+        trigger-id 1
+
         updated? (atom false)
 
         result-channel (async/chan)]
@@ -745,7 +869,10 @@
       (fn [_ _ _ _]
         (reset! updated? true)))
 
-    (async/put! result-channel {:check check :result result})
+    (async/put! result-channel
+      {:trigger-id trigger-id
+       :check      check
+       :result     result})
 
     (loop [attempts 1]
       (if @updated?
@@ -780,8 +907,10 @@
                    (registry/with-check check-1)
                    (registry/with-check check-2)
                    (registry/with-check check-3))
-
         registry-store (atom registry)
+
+        trigger-id 1
+
         updated-count (atom 0)
 
         result-channel (async/chan 10)]
@@ -792,9 +921,18 @@
       (fn [_ _ _ _]
         (swap! updated-count inc)))
 
-    (async/put! result-channel {:check check-1 :result result-1})
-    (async/put! result-channel {:check check-2 :result result-2})
-    (async/put! result-channel {:check check-3 :result result-3})
+    (async/put! result-channel
+      {:trigger-id trigger-id
+       :check      check-1
+       :result     result-1})
+    (async/put! result-channel
+      {:trigger-id trigger-id
+       :check      check-2
+       :result     result-2})
+    (async/put! result-channel
+      {:trigger-id trigger-id
+       :check      check-3
+       :result     result-3})
 
     (loop [attempts 1]
       (if (= @updated-count 3)
@@ -825,18 +963,24 @@
                    (registry/with-check check))
         registry-store (atom registry)
 
+        trigger-id 2
+
         result-channel (async/chan)]
     (maintenance/updater dependencies
       registry-store result-channel)
 
-    (async/put! result-channel {:check check :result result})
+    (async/put! result-channel
+      {:trigger-id trigger-id
+       :check      check
+       :result     result})
 
     (async/<!! (async/timeout 25))
 
-    (is (= [{:context {:check-name :thing
-                       :result result}
+    (is (= [{:context {:trigger-id trigger-id
+                       :check-name :thing
+                       :result     result}
              :meta    {:column 15
-                       :line   102
+                       :line   103
                        :ns     (find-ns 'salutem.maintenance)}
              :level   :info
              :type    :salutem.maintenance/updater.updating}]
@@ -863,7 +1007,7 @@
 
     (is (= [{:context {}
              :meta    {:column 13
-                       :line   108
+                       :line   110
                        :ns     (find-ns 'salutem.maintenance)}
              :level   :info
              :type    :salutem.maintenance/updater.stopped}]
