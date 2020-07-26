@@ -91,14 +91,21 @@
 
 (defn updater
   [dependencies registry-store result-channel]
-  (async/go
-    (loop []
-      (let [{:keys [check result]
-             :as   result-message} (async/<! result-channel)]
-        (when result-message
-          (swap! registry-store
-            registry/with-cached-result check result)
-          (recur))))))
+  (let [logger (:logger dependencies)]
+    (log/info logger ::updater.starting)
+    (async/go
+      (loop []
+        (let [{:keys [check result]
+               :as   result-message} (async/<! result-channel)]
+          (if result-message
+            (do
+              (log/info logger ::updater.updating
+                {:check-name (:name check)
+                 :result     result})
+              (swap! registry-store
+                registry/with-cached-result check result)
+              (recur))
+            (log/info logger ::updater.stopped)))))))
 
 (defn maintain
   [registry-store

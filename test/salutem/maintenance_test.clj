@@ -699,6 +699,29 @@
              :type    :salutem.maintenance/evaluator.stopped}]
           (cartus-test/events test-logger)))))
 
+(deftest updater-logs-event-on-start
+  (let [test-logger (cartus-test/logger)
+        filtered-logger (cartus-core/with-types-retained test-logger
+                          #{:salutem.maintenance/updater.starting})
+        dependencies {:logger filtered-logger}
+
+        registry (registry/empty-registry)
+        registry-store (atom registry)
+
+        result-channel (async/chan)]
+    (maintenance/updater dependencies
+      registry-store result-channel)
+
+    (is (= [{:context {}
+             :meta    {:column 5
+                       :line   95
+                       :ns     (find-ns 'salutem.maintenance)}
+             :level   :info
+             :type    :salutem.maintenance/updater.starting}]
+          (cartus-test/events test-logger)))
+
+    (async/close! result-channel)))
+
 (deftest updater-adds-single-result-to-registry-in-registry-store-atom
   (let [logger (cartus-null/logger)
         dependencies {:logger logger}
@@ -786,6 +809,65 @@
 
     (remove-watch registry-store :watcher)
     (async/close! result-channel)))
+
+(deftest updater-logs-event-on-adding-result-to-registry
+  (let [test-logger (cartus-test/logger)
+        filtered-logger (cartus-core/with-types-retained test-logger
+                          #{:salutem.maintenance/updater.updating})
+        dependencies {:logger filtered-logger}
+
+        check (checks/background-check :thing
+                (fn [_ result-cb] (result-cb (results/healthy))))
+        result (results/healthy
+                 {:latency (t/new-duration 267 :millis)})
+
+        registry (-> (registry/empty-registry)
+                   (registry/with-check check))
+        registry-store (atom registry)
+
+        result-channel (async/chan)]
+    (maintenance/updater dependencies
+      registry-store result-channel)
+
+    (async/put! result-channel {:check check :result result})
+
+    (async/<!! (async/timeout 25))
+
+    (is (= [{:context {:check-name :thing
+                       :result result}
+             :meta    {:column 15
+                       :line   102
+                       :ns     (find-ns 'salutem.maintenance)}
+             :level   :info
+             :type    :salutem.maintenance/updater.updating}]
+          (cartus-test/events test-logger)))
+
+    (async/close! result-channel)))
+
+(deftest updater-logs-event-on-shutdown
+  (let [test-logger (cartus-test/logger)
+        filtered-logger (cartus-core/with-types-retained test-logger
+                          #{:salutem.maintenance/updater.stopped})
+        dependencies {:logger filtered-logger}
+
+        registry (registry/empty-registry)
+        registry-store (atom registry)
+
+        result-channel (async/chan)]
+    (maintenance/updater dependencies
+      registry-store result-channel)
+
+    (async/close! result-channel)
+
+    (async/<!! (async/timeout 50))
+
+    (is (= [{:context {}
+             :meta    {:column 13
+                       :line   108
+                       :ns     (find-ns 'salutem.maintenance)}
+             :level   :info
+             :type    :salutem.maintenance/updater.stopped}]
+          (cartus-test/events test-logger)))))
 
 (deftest maintain-starts-pipeline-to-refresh-registry
   (let [check-count (atom 0)
