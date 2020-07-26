@@ -1,4 +1,4 @@
-(defproject io.logicblocks/salutem "0.1.0-RC7"
+(defproject io.logicblocks/salutem "0.1.0-RC8"
   :description "A health check library for sync / async health checks."
   :url "https://github.com/logicblocks/salutem"
 
