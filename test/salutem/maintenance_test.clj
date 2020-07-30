@@ -5,6 +5,8 @@
 
    [tick.alpha.api :as t]
 
+   [matcher-combinators.matchers :as matchers]
+
    [cartus.core :as cartus-core]
    [cartus.test :as cartus-test]
    [cartus.null :as cartus-null]
@@ -12,7 +14,9 @@
    [salutem.checks :as checks]
    [salutem.results :as results]
    [salutem.maintenance :as maintenance]
-   [salutem.registry :as registry]))
+   [salutem.registry :as registry]
+
+   [salutem.test-support.matcher]))
 
 (defn <!!-or-timeout
   ([chan]
@@ -38,13 +42,10 @@
         shutdown-channel
         (maintenance/maintainer dependencies
           registry-store context interval trigger-channel)]
-    (is (= [{:context {:interval #time/duration "PT0.05S"}
-             :level   :info
-             :meta    {:column 5
-                       :line   18
-                       :ns     (find-ns 'salutem.maintenance)}
-             :type    :salutem.maintenance/maintainer.starting}]
-          (cartus-test/events logger)))
+    (is (logged? logger
+          [{:context {:interval #time/duration "PT0.05S"}
+            :level   :info
+            :type    :salutem.maintenance/maintainer.starting}]))
 
     (async/close! shutdown-channel)))
 
@@ -104,20 +105,13 @@
 
     (async/<!! (async/timeout 120))
 
-    (is (= [{:context {:trigger-id 1}
-             :level   :info
-             :meta    {:column 13
-                       :line   25
-                       :ns     (find-ns 'salutem.maintenance)}
-             :type    :salutem.maintenance/maintainer.triggering}
-            {:context
-             {:trigger-id 2}
-             :level :info
-             :meta  {:column 13
-                     :line   25
-                     :ns     (find-ns 'salutem.maintenance)}
-             :type  :salutem.maintenance/maintainer.triggering}]
-          (cartus-test/events test-logger)))
+    (is (logged? test-logger
+          [{:context {:trigger-id 1}
+            :level   :info
+            :type    :salutem.maintenance/maintainer.triggering}
+           {:context {:trigger-id 2}
+            :level   :info
+            :type    :salutem.maintenance/maintainer.triggering}]))
 
     (async/close! shutdown-channel)))
 
@@ -166,13 +160,10 @@
 
     (async/<!! (async/timeout 50))
 
-    (is (= [{:context {:triggers-sent 0}
-             :meta    {:column 13
-                       :line   36
-                       :ns     (find-ns 'salutem.maintenance)}
-             :level   :info
-             :type    :salutem.maintenance/maintainer.stopped}]
-          (cartus-test/events test-logger)))))
+    (is (logged? test-logger
+          [{:context {:triggers-sent 0}
+            :level   :info
+            :type    :salutem.maintenance/maintainer.stopped}]))))
 
 (deftest refresher-logs-event-on-start
   (let [logger (cartus-test/logger)
@@ -183,13 +174,10 @@
     (maintenance/refresher dependencies
       trigger-channel evaluation-channel)
 
-    (is (= [{:context {}
-             :meta    {:column 6
-                       :line   45
-                       :ns     (find-ns 'salutem.maintenance)}
-             :level   :info
-             :type    :salutem.maintenance/refresher.starting}]
-          (cartus-test/events logger)))
+    (is (logged? logger
+          [{:context {}
+            :level   :info
+            :type    :salutem.maintenance/refresher.starting}]))
 
     (async/close! trigger-channel)))
 
@@ -217,13 +205,10 @@
 
     (async/<!! (async/timeout 50))
 
-    (is (= [{:context {:trigger-id 1}
-             :meta    {:column 16
-                       :line   53
-                       :ns     (find-ns 'salutem.maintenance)}
-             :level   :info
-             :type    :salutem.maintenance/refresher.triggered}]
-          (cartus-test/events test-logger)))
+    (is (logged? test-logger
+          [{:context {:trigger-id 1}
+            :level   :info
+            :type    :salutem.maintenance/refresher.triggered}]))
 
     (async/close! trigger-channel)))
 
@@ -370,21 +355,15 @@
 
     (<!!-or-timeout (async/into #{} evaluation-channel))
 
-    (is (= #{{:context {:trigger-id 1
-                        :check-name (:name check-1)}
-              :meta    {:column 18
-                        :line   56
-                        :ns     (find-ns 'salutem.maintenance)}
-              :level   :info
-              :type    :salutem.maintenance/refresher.evaluating}
-             {:context {:trigger-id 1
-                        :check-name (:name check-3)}
-              :meta    {:column 18
-                        :line   56
-                        :ns     (find-ns 'salutem.maintenance)}
-              :level   :info
-              :type    :salutem.maintenance/refresher.evaluating}}
-          (set (cartus-test/events test-logger))))))
+    (is (logged? test-logger #{:in-any-order}
+          [{:context {:trigger-id 1
+                      :check-name (:name check-1)}
+            :level   :info
+            :type    :salutem.maintenance/refresher.evaluating}
+           {:context {:trigger-id 1
+                      :check-name (:name check-3)}
+            :level   :info
+            :type    :salutem.maintenance/refresher.evaluating}]))))
 
 (deftest refresher-puts-to-returned-evaluation-channel-when-none-provided
   (let [logger (cartus-null/logger)
@@ -443,13 +422,10 @@
 
     (async/<!! (async/timeout 50))
 
-    (is (= [{:context {}
-             :meta    {:column 16
-                       :line   66
-                       :ns     (find-ns 'salutem.maintenance)}
-             :level   :info
-             :type    :salutem.maintenance/refresher.stopped}]
-          (cartus-test/events test-logger)))))
+    (is (logged? test-logger
+          [{:context {}
+            :level   :info
+            :type    :salutem.maintenance/refresher.stopped}]))))
 
 (deftest evaluator-logs-event-on-start
   (let [test-logger (cartus-test/logger)
@@ -462,13 +438,10 @@
     (maintenance/evaluator dependencies
       evaluation-channel result-channel)
 
-    (is (= [{:context {}
-             :meta    {:column 6
-                       :line   74
-                       :ns     (find-ns 'salutem.maintenance)}
-             :level   :info
-             :type    :salutem.maintenance/evaluator.starting}]
-          (cartus-test/events test-logger)))
+    (is (logged? test-logger
+          [{:context {}
+            :level   :info
+            :type    :salutem.maintenance/evaluator.starting}]))
 
     (async/close! evaluation-channel)))
 
@@ -495,14 +468,11 @@
        :check      check
        :context    context})
 
-    (is (= [{:context {:trigger-id trigger-id
-                       :check-name :thing}
-             :meta    {:column 16
-                       :line   82
-                       :ns     (find-ns 'salutem.maintenance)}
-             :level   :info
-             :type    :salutem.maintenance/evaluator.evaluating}]
-          (cartus-test/events test-logger)))
+    (is (logged? test-logger
+          [{:context {:trigger-id trigger-id
+                      :check-name :thing}
+            :level   :info
+            :type    :salutem.maintenance/evaluator.evaluating}]))
 
     (async/close! evaluation-channel)))
 
@@ -534,14 +504,11 @@
 
     (<!!-or-timeout result-channel)
 
-    (is (= [{:context {:trigger-id trigger-id
-                       :check-name :thing}
-             :meta    {:column 10
-                       :line   58
-                       :ns     (find-ns 'salutem.checks)}
-             :level   :info
-             :type    :salutem.checks/attempt.starting}]
-          (cartus-test/events test-logger)))
+    (is (logged? test-logger
+          [{:context {:trigger-id trigger-id
+                      :check-name :thing}
+            :level   :info
+            :type    :salutem.checks/attempt.starting}]))
 
     (async/close! evaluation-channel)))
 
@@ -672,15 +639,12 @@
 
     (<!!-or-timeout result-channel)
 
-    (is (= [{:context {:trigger-id trigger-id
-                       :check-name :thing
-                       :result     result}
-             :meta    {:column 15
-                       :line   68
-                       :ns     (find-ns 'salutem.checks)}
-             :level   :info
-             :type    :salutem.checks/attempt.completed}]
-          (cartus-test/events test-logger)))
+    (is (logged? test-logger
+          [{:context {:trigger-id trigger-id
+                      :check-name :thing
+                      :result     result}
+            :level   :info
+            :type    :salutem.checks/attempt.completed}]))
 
     (async/close! evaluation-channel)))
 
@@ -743,14 +707,11 @@
     (<!!-or-timeout result-channel
       (t/new-duration 200 :millis))
 
-    (is (= [{:context {:trigger-id trigger-id
-                       :check-name :thing}
-             :meta    {:column 14
-                       :line   79
-                       :ns     (find-ns 'salutem.checks)}
-             :level   :info
-             :type    ::checks/attempt.timed-out}]
-          (cartus-test/events test-logger)))
+    (is (logged? test-logger
+          [{:context {:trigger-id trigger-id
+                      :check-name :thing}
+            :level   :info
+            :type    ::checks/attempt.timed-out}]))
 
     (async/close! evaluation-channel)))
 
@@ -813,13 +774,9 @@
 
     (async/<!! (async/timeout 50))
 
-    (is (= [{:context {}
-             :meta    {:column 16
-                       :line   90
-                       :ns     (find-ns 'salutem.maintenance)}
-             :level   :info
-             :type    :salutem.maintenance/evaluator.stopped}]
-          (cartus-test/events test-logger)))))
+    (is (logged? test-logger
+          [{:level :info
+            :type  :salutem.maintenance/evaluator.stopped}]))))
 
 (deftest updater-logs-event-on-start
   (let [test-logger (cartus-test/logger)
@@ -834,13 +791,9 @@
     (maintenance/updater dependencies
       registry-store result-channel)
 
-    (is (= [{:context {}
-             :meta    {:column 5
-                       :line   96
-                       :ns     (find-ns 'salutem.maintenance)}
-             :level   :info
-             :type    :salutem.maintenance/updater.starting}]
-          (cartus-test/events test-logger)))
+    (is (logged? test-logger
+          [{:level :info
+            :type  :salutem.maintenance/updater.starting}]))
 
     (async/close! result-channel)))
 
@@ -976,15 +929,12 @@
 
     (async/<!! (async/timeout 25))
 
-    (is (= [{:context {:trigger-id trigger-id
-                       :check-name :thing
-                       :result     result}
-             :meta    {:column 15
-                       :line   103
-                       :ns     (find-ns 'salutem.maintenance)}
-             :level   :info
-             :type    :salutem.maintenance/updater.updating}]
-          (cartus-test/events test-logger)))
+    (is (logged? test-logger
+          [{:context {:trigger-id trigger-id
+                      :check-name :thing
+                      :result     result}
+            :level   :info
+            :type    :salutem.maintenance/updater.updating}]))
 
     (async/close! result-channel)))
 
@@ -1005,13 +955,10 @@
 
     (async/<!! (async/timeout 50))
 
-    (is (= [{:context {}
-             :meta    {:column 13
-                       :line   110
-                       :ns     (find-ns 'salutem.maintenance)}
-             :level   :info
-             :type    :salutem.maintenance/updater.stopped}]
-          (cartus-test/events test-logger)))))
+    (is (logged? test-logger
+          [{:context {}
+            :level   :info
+            :type    :salutem.maintenance/updater.stopped}]))))
 
 (deftest maintain-starts-pipeline-to-refresh-registry
   (let [check-count (atom 0)
