@@ -7,8 +7,8 @@
 
   :dependencies [[org.clojure/core.async "1.2.603"]
 
-                 [io.logicblocks/cartus.core "0.1.12"]
-                 [io.logicblocks/cartus.null "0.1.12"]
+                 [io.logicblocks/cartus.core "0.1.13-RC5"]
+                 [io.logicblocks/cartus.null "0.1.13-RC5"]
 
                  [tick "0.4.26-alpha"]]
 
@@ -30,10 +30,8 @@
    {:dependencies [[org.clojure/clojure "1.10.1"]
                    [org.clojure/tools.trace "0.7.10"]
 
-                   [nubank/matcher-combinators "3.1.1"]
-
-                   [io.logicblocks/cartus.test "0.1.12"]
-                   [io.logicblocks/cartus.null "0.1.12"]
+                   [io.logicblocks/cartus.test "0.1.13-RC5"]
+                   [io.logicblocks/cartus.null "0.1.13-RC5"]
 
                    [nrepl "0.7.0"]
 
