@@ -5,7 +5,6 @@
 
    [tick.alpha.api :as t]
 
-   [cartus.core :as cartus-core]
    [cartus.test :as cartus-test]
    [cartus.null :as cartus-null]
 
@@ -83,10 +82,7 @@
 
 (deftest maintainer-logs-event-every-interval-when-logger-in-context
   (let [test-logger (cartus-test/logger)
-        filtered-logger (cartus-core/with-types-retained
-                          test-logger
-                          #{:salutem.maintenance/maintainer.triggering})
-        dependencies {:logger filtered-logger}
+        dependencies {:logger test-logger}
         context {:some "context"}
         interval (t/new-duration 50 :millis)
 
@@ -136,10 +132,7 @@
 
 (deftest maintainer-logs-event-on-shutdown-when-logger-in-context
   (let [test-logger (cartus-test/logger)
-        filtered-logger (cartus-core/with-types-retained
-                          test-logger
-                          #{:salutem.maintenance/maintainer.stopped})
-        dependencies {:logger filtered-logger}
+        dependencies {:logger test-logger}
         context {:some "context"}
         interval (t/new-duration 200 :millis)
 
@@ -179,9 +172,7 @@
 
 (deftest refresher-logs-event-on-receipt-of-trigger
   (let [test-logger (cartus-test/logger)
-        filtered-logger (cartus-core/with-types-retained test-logger
-                          #{:salutem.maintenance/refresher.triggered})
-        dependencies {:logger filtered-logger}
+        dependencies {:logger test-logger}
         context {:some "context"}
         trigger-id 1
 
@@ -300,9 +291,7 @@
 
 (deftest refresher-logs-event-on-triggering-evaluation-for-each-check
   (let [test-logger (cartus-test/logger)
-        filtered-logger (cartus-core/with-types-retained test-logger
-                          #{:salutem.maintenance/refresher.evaluating})
-        dependencies {:logger filtered-logger}
+        dependencies {:logger test-logger}
         context {:some "context"}
         trigger-id 1
 
@@ -404,10 +393,7 @@
 
 (deftest refresher-logs-event-on-shutdown
   (let [test-logger (cartus-test/logger)
-        filtered-logger (cartus-core/with-types-retained
-                          test-logger
-                          #{:salutem.maintenance/refresher.stopped})
-        dependencies {:logger filtered-logger}
+        dependencies {:logger test-logger}
 
         trigger-channel (async/chan)
         evaluation-channel (async/chan)]
@@ -425,9 +411,7 @@
 
 (deftest evaluator-logs-event-on-start
   (let [test-logger (cartus-test/logger)
-        filtered-logger (cartus-core/with-types-retained test-logger
-                          #{:salutem.maintenance/evaluator.starting})
-        dependencies {:logger filtered-logger}
+        dependencies {:logger test-logger}
 
         evaluation-channel (async/chan)
         result-channel (async/chan)]
@@ -443,9 +427,7 @@
 
 (deftest evaluator-logs-event-on-evaluating-check
   (let [test-logger (cartus-test/logger)
-        filtered-logger (cartus-core/with-types-retained test-logger
-                          #{:salutem.maintenance/evaluator.evaluating})
-        dependencies {:logger filtered-logger}
+        dependencies {:logger test-logger}
         context {:some "context"}
 
         check (checks/background-check :thing
@@ -474,9 +456,7 @@
 
 (deftest evaluator-logs-event-on-start-of-attempt
   (let [test-logger (cartus-test/logger)
-        filtered-logger (cartus-core/with-types-retained test-logger
-                          #{:salutem.checks/attempt.starting})
-        dependencies {:logger filtered-logger}
+        dependencies {:logger test-logger}
         context {:some "context"}
 
         check (checks/background-check :thing
@@ -609,9 +589,7 @@
 
 (deftest evaluator-logs-event-on-attempt-completion
   (let [test-logger (cartus-test/logger)
-        filtered-logger (cartus-core/with-types-retained test-logger
-                          #{:salutem.checks/attempt.completed})
-        dependencies {:logger filtered-logger}
+        dependencies {:logger test-logger}
         context {:some "context"}
 
         result (results/unhealthy
@@ -677,9 +655,7 @@
 
 (deftest evaluator-logs-event-on-attempt-timeout
   (let [test-logger (cartus-test/logger)
-        filtered-logger (cartus-core/with-types-retained test-logger
-                          #{::checks/attempt.timed-out})
-        dependencies {:logger filtered-logger}
+        dependencies {:logger test-logger}
 
         check (checks/background-check :thing
                 (fn [_ result-cb]
@@ -757,9 +733,7 @@
 
 (deftest evaluator-logs-event-on-shutdown
   (let [test-logger (cartus-test/logger)
-        filtered-logger (cartus-core/with-types-retained test-logger
-                          #{:salutem.maintenance/evaluator.stopped})
-        dependencies {:logger filtered-logger}
+        dependencies {:logger test-logger}
 
         evaluation-channel (async/chan)
         result-channel (async/chan)]
@@ -776,9 +750,7 @@
 
 (deftest updater-logs-event-on-start
   (let [test-logger (cartus-test/logger)
-        filtered-logger (cartus-core/with-types-retained test-logger
-                          #{:salutem.maintenance/updater.starting})
-        dependencies {:logger filtered-logger}
+        dependencies {:logger test-logger}
 
         registry (registry/empty-registry)
         registry-store (atom registry)
@@ -899,9 +871,7 @@
 
 (deftest updater-logs-event-on-adding-result-to-registry
   (let [test-logger (cartus-test/logger)
-        filtered-logger (cartus-core/with-types-retained test-logger
-                          #{:salutem.maintenance/updater.updating})
-        dependencies {:logger filtered-logger}
+        dependencies {:logger test-logger}
 
         check (checks/background-check :thing
                 (fn [_ result-cb] (result-cb (results/healthy))))
@@ -936,9 +906,7 @@
 
 (deftest updater-logs-event-on-shutdown
   (let [test-logger (cartus-test/logger)
-        filtered-logger (cartus-core/with-types-retained test-logger
-                          #{:salutem.maintenance/updater.stopped})
-        dependencies {:logger filtered-logger}
+        dependencies {:logger test-logger}
 
         registry (registry/empty-registry)
         registry-store (atom registry)
