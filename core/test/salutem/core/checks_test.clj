@@ -1,11 +1,11 @@
-(ns salutem.checks-test
+(ns salutem.core.checks-test
   (:require
    [clojure.test :refer :all]
 
    [tick.alpha.api :as t]
 
-   [salutem.checks :as checks]
-   [salutem.results :as results]))
+   [salutem.core.checks :as checks]
+   [salutem.core.results :as results]))
 
 (deftest creates-background-check-with-provided-name-and-check-fn
   (let [check-name :thing

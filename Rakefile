@@ -2,9 +2,21 @@ require 'yaml'
 require 'rake_ssh'
 require 'rake_github'
 require 'rake_circle_ci'
+require 'ruby_leiningen'
 require 'rake_leiningen'
 
-task :default => [:'library:check', :'library:test:unit']
+task :default => [
+    :'library:initialise',
+    :'library:check',
+    :'library:test:unit'
+]
+
+RubyLeiningen::Commands.define_custom_command("modules")  do |config, opts|
+  config.on_command_builder do |command|
+    command = command.with_subcommand(opts[:command].to_s)
+    command
+  end
+end
 
 RakeLeiningen.define_installation_tasks(
     version: '2.9.1')
@@ -62,11 +74,18 @@ namespace :pipeline do
 end
 
 namespace :library do
+  desc "Initialise all modules in the local maven repository"
+  task :initialise => [:'leiningen:ensure'] do
+    RubyLeiningen.modules(command: "install")
+  end
+
   RakeLeiningen.define_check_tasks(fix: true)
 
   namespace :test do
     RakeLeiningen.define_test_task(
-        name: :unit, type: 'unit', profile: 'test')
+        name: :unit,
+        type: 'unit',
+        profile: 'test')
   end
 
   namespace :publish do

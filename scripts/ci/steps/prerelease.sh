@@ -9,7 +9,7 @@ PROJECT_DIR="$( cd "$SCRIPT_DIR/../../.." && pwd )"
 
 cd "$PROJECT_DIR"
 
-./go library:publish:prerelease
+./go library:initialise library:publish:prerelease
 
 git status
 git push

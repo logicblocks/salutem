@@ -1,4 +1,4 @@
-(ns salutem.checks
+(ns salutem.core.checks
   (:require
    [clojure.core.async :as async]
 
@@ -7,7 +7,7 @@
    [cartus.core :as log]
    [cartus.null :as cartus-null]
 
-   [salutem.results :as results]))
+   [salutem.core.results :as results]))
 
 (defn- check
   ([check-name check-fn] (check check-name check-fn {}))

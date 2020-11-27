@@ -1,9 +1,9 @@
-(ns salutem.registry
+(ns salutem.core.registry
   (:require
    [tick.alpha.api :as t]
 
-   [salutem.checks :as checks]
-   [salutem.results :as results]))
+   [salutem.core.checks :as checks]
+   [salutem.core.results :as results]))
 
 (defn empty-registry []
   {:checks         {}

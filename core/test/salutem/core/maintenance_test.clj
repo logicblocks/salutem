@@ -1,4 +1,4 @@
-(ns salutem.maintenance-test
+(ns salutem.core.maintenance-test
   (:require
    [clojure.test :refer :all]
    [clojure.core.async :as async]
@@ -8,10 +8,10 @@
    [cartus.test :as cartus-test]
    [cartus.null :as cartus-null]
 
-   [salutem.checks :as checks]
-   [salutem.results :as results]
-   [salutem.maintenance :as maintenance]
-   [salutem.registry :as registry]))
+   [salutem.core.checks :as checks]
+   [salutem.core.results :as results]
+   [salutem.core.maintenance :as maintenance]
+   [salutem.core.registry :as registry]))
 
 (defn <!!-or-timeout
   ([chan]
@@ -40,7 +40,7 @@
     (is (logged? logger
           {:context {:interval #time/duration "PT0.05S"}
            :level   :info
-           :type    :salutem.maintenance/maintainer.starting}))
+           :type    :salutem.core.maintenance/maintainer.starting}))
 
     (async/close! shutdown-channel)))
 
@@ -100,10 +100,10 @@
     (is (logged? test-logger
           {:context {:trigger-id 1}
            :level   :info
-           :type    :salutem.maintenance/maintainer.triggering}
+           :type    :salutem.core.maintenance/maintainer.triggering}
           {:context {:trigger-id 2}
            :level   :info
-           :type    :salutem.maintenance/maintainer.triggering}))
+           :type    :salutem.core.maintenance/maintainer.triggering}))
 
     (async/close! shutdown-channel)))
 
@@ -152,7 +152,7 @@
     (is (logged? test-logger
           {:context {:triggers-sent 0}
            :level   :info
-           :type    :salutem.maintenance/maintainer.stopped}))))
+           :type    :salutem.core.maintenance/maintainer.stopped}))))
 
 (deftest refresher-logs-event-on-start
   (let [logger (cartus-test/logger)
@@ -166,7 +166,7 @@
     (is (logged? logger
           {:context {}
            :level   :info
-           :type    :salutem.maintenance/refresher.starting}))
+           :type    :salutem.core.maintenance/refresher.starting}))
 
     (async/close! trigger-channel)))
 
@@ -195,7 +195,7 @@
     (is (logged? test-logger
           {:context {:trigger-id 1}
            :level   :info
-           :type    :salutem.maintenance/refresher.triggered}))
+           :type    :salutem.core.maintenance/refresher.triggered}))
 
     (async/close! trigger-channel)))
 
@@ -344,11 +344,11 @@
           {:context {:trigger-id 1
                      :check-name (:name check-1)}
            :level   :info
-           :type    :salutem.maintenance/refresher.evaluating}
+           :type    :salutem.core.maintenance/refresher.evaluating}
           {:context {:trigger-id 1
                      :check-name (:name check-3)}
            :level   :info
-           :type    :salutem.maintenance/refresher.evaluating}))))
+           :type    :salutem.core.maintenance/refresher.evaluating}))))
 
 (deftest refresher-puts-to-returned-evaluation-channel-when-none-provided
   (let [logger (cartus-null/logger)
@@ -407,7 +407,7 @@
     (is (logged? test-logger
           {:context {}
            :level   :info
-           :type    :salutem.maintenance/refresher.stopped}))))
+           :type    :salutem.core.maintenance/refresher.stopped}))))
 
 (deftest evaluator-logs-event-on-start
   (let [test-logger (cartus-test/logger)
@@ -421,7 +421,7 @@
     (is (logged? test-logger
           {:context {}
            :level   :info
-           :type    :salutem.maintenance/evaluator.starting}))
+           :type    :salutem.core.maintenance/evaluator.starting}))
 
     (async/close! evaluation-channel)))
 
@@ -450,7 +450,7 @@
           {:context {:trigger-id trigger-id
                      :check-name :thing}
            :level   :info
-           :type    :salutem.maintenance/evaluator.evaluating}))
+           :type    :salutem.core.maintenance/evaluator.evaluating}))
 
     (async/close! evaluation-channel)))
 
@@ -484,7 +484,7 @@
           {:context {:trigger-id trigger-id
                      :check-name :thing}
            :level   :info
-           :type    :salutem.checks/attempt.starting}))
+           :type    :salutem.core.checks/attempt.starting}))
 
     (async/close! evaluation-channel)))
 
@@ -618,7 +618,7 @@
                      :check-name :thing
                      :result     result}
            :level   :info
-           :type    :salutem.checks/attempt.completed}))
+           :type    :salutem.core.checks/attempt.completed}))
 
     (async/close! evaluation-channel)))
 
@@ -746,7 +746,7 @@
 
     (is (logged? test-logger
           {:level :info
-           :type  :salutem.maintenance/evaluator.stopped}))))
+           :type  :salutem.core.maintenance/evaluator.stopped}))))
 
 (deftest updater-logs-event-on-start
   (let [test-logger (cartus-test/logger)
@@ -761,7 +761,7 @@
 
     (is (logged? test-logger
           {:level :info
-           :type  :salutem.maintenance/updater.starting}))
+           :type  :salutem.core.maintenance/updater.starting}))
 
     (async/close! result-channel)))
 
@@ -900,7 +900,7 @@
                      :check-name :thing
                      :result     result}
            :level   :info
-           :type    :salutem.maintenance/updater.updating}))
+           :type    :salutem.core.maintenance/updater.updating}))
 
     (async/close! result-channel)))
 
@@ -922,7 +922,7 @@
     (is (logged? test-logger
           {:context {}
            :level   :info
-           :type    :salutem.maintenance/updater.stopped}))))
+           :type    :salutem.core.maintenance/updater.stopped}))))
 
 (deftest maintain-starts-pipeline-to-refresh-registry
   (let [check-count (atom 0)

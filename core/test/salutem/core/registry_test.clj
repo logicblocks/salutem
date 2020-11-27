@@ -1,13 +1,13 @@
-(ns salutem.registry-test
+(ns salutem.core.registry-test
   (:require
    [clojure.test :refer :all]
 
    [spy.core :as spy]
    [tick.alpha.api :as t]
 
-   [salutem.checks :as checks]
-   [salutem.results :as results]
-   [salutem.registry :as registry]))
+   [salutem.core.checks :as checks]
+   [salutem.core.results :as results]
+   [salutem.core.registry :as registry]))
 
 (deftest adds-single-check-to-registry
   (let [check (checks/realtime-check :thing

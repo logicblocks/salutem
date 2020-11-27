@@ -1,4 +1,4 @@
-(ns salutem.results
+(ns salutem.core.results
   (:require
    [tick.alpha.api :as t]))
 

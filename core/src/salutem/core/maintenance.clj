@@ -1,4 +1,4 @@
-(ns salutem.maintenance
+(ns salutem.core.maintenance
   (:require
    [clojure.core.async :as async]
 
@@ -7,8 +7,8 @@
 
    [tick.alpha.api :as t]
 
-   [salutem.checks :as checks]
-   [salutem.registry :as registry]))
+   [salutem.core.checks :as checks]
+   [salutem.core.registry :as registry]))
 
 (defn maintainer [dependencies registry-store context interval trigger-channel]
   (let [logger (:logger dependencies)

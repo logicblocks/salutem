@@ -1,11 +1,11 @@
-(ns salutem.results-test
+(ns salutem.core.results-test
   (:require
    [clojure.test :refer :all]
 
    [tick.alpha.api :as t]
 
-   [salutem.results :as results]
-   [salutem.checks :as checks]))
+   [salutem.core.results :as results]
+   [salutem.core.checks :as checks]))
 
 (deftest creates-result-with-provided-status
   (let [result (results/result :healthy)]

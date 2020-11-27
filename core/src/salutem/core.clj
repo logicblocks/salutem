@@ -1,9 +1,9 @@
 (ns salutem.core
   (:require
-   [salutem.checks :as checks]
-   [salutem.results :as results]
-   [salutem.registry :as registry]
-   [salutem.maintenance :as maintenance]))
+   [salutem.core.checks :as checks]
+   [salutem.core.results :as results]
+   [salutem.core.registry :as registry]
+   [salutem.core.maintenance :as maintenance]))
 
 ; results
 (def result results/result)

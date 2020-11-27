@@ -1,78 +1,143 @@
 (defproject io.logicblocks/salutem "0.1.0-RC11"
-  :description "A health check library for sync / async health checks."
-  :url "https://github.com/logicblocks/salutem"
+  :description "Parent for all salutem modules."
 
-  :license {:name "The MIT License"
-            :url  "https://opensource.org/licenses/MIT"}
-
-  :dependencies [[org.clojure/core.async "1.2.603"]
-
-                 [io.logicblocks/cartus.core "0.1.14"]
-                 [io.logicblocks/cartus.null "0.1.14"]
-
-                 [tick "0.4.26-alpha"]]
-
-  :plugins [[lein-cloverage "1.1.2"]
-            [lein-shell "0.5.0"]
-            [lein-cprint "1.3.3"]
-            [lein-ancient "0.6.15"]
+  :plugins [[lein-modules "0.3.11"]
             [lein-changelog "0.3.2"]
-            [lein-eftest "0.5.9"]
-            [lein-codox "0.10.7"]
-            [lein-cljfmt "0.6.7"]
-            [lein-kibit "0.1.8"]
-            [lein-bikeshed "0.5.2"]
-            [jonase/eastwood "0.3.11"]]
+            [lein-codox "0.10.7"]]
+
+  :modules
+  {:subprocess
+   nil
+
+   :inherited
+   {:url
+             "https://github.com/logicblocks/salutem"
+
+    :license
+             {:name "The MIT License"
+              :url  "https://opensource.org/licenses/MIT"}
+
+    :deploy-repositories
+             {"releases"  {:url "https://repo.clojars.org" :creds :gpg}
+              "snapshots" {:url "https://repo.clojars.org" :creds :gpg}}
+
+    :plugins [[lein-cloverage "1.1.2"]
+              [lein-shell "0.5.0"]
+              [lein-cprint "1.3.3"]
+              [lein-ancient "0.6.15"]
+              [lein-eftest "0.5.9"]
+              [lein-cljfmt "0.7.0"]
+              [lein-kibit "0.1.8"]
+              [lein-bikeshed "0.5.2"]
+              [jonase/eastwood "0.3.11"]]
+
+    :cloverage
+             {:ns-exclude-regex [#"^user"]}
+
+    :bikeshed
+             {:name-collisions false
+              :long-lines      false}
+
+    :cljfmt
+             {:indents {#".*"     [[:inner 0]]
+                        defrecord [[:block 1] [:inner 1]]
+                        deftype   [[:block 1] [:inner 1]]}}
+
+    :eastwood
+             {:config-files
+              [~(str (System/getProperty "user.dir") "/config/linter.clj")]}}
+
+   :versions
+   {org.clojure/clojure         "1.10.1"
+    org.clojure/tools.trace     "0.7.10"
+    org.clojure/core.async      "1.2.603"
+
+    io.logicblocks/cartus.core  "0.1.14"
+    io.logicblocks/cartus.null  "0.1.14"
+    io.logicblocks/cartus.test  "0.1.14"
+
+    tick                        "0.4.26-alpha"
+
+    nrepl                       "0.7.0"
+
+    eftest                      "0.5.9"
+    tortue/spy                  "2.0.0"
+
+    io.logicblocks/salutem.core :version}}
 
   :profiles
   {:shared
    ^{:pom-scope :test}
-   {:dependencies [[org.clojure/clojure "1.10.1"]
-                   [org.clojure/tools.trace "0.7.10"]
+   {:dependencies [[org.clojure/clojure "_"]
+                   [org.clojure/tools.trace "_"]
 
-                   [io.logicblocks/cartus.test "0.1.14"]
-                   [io.logicblocks/cartus.null "0.1.14"]
+                   [io.logicblocks/cartus.test "_"]
+                   [io.logicblocks/cartus.null "_"]
 
-                   [nrepl "0.7.0"]
+                   [nrepl "_"]
 
-                   [tortue/spy "2.0.0"]
-                   [eftest "0.5.9"]]}
+                   [eftest "_"]
+                   [tortue/spy "_"]]}
+
    :dev
-   [:shared {:source-paths ["dev"]
-             :eftest       {:multithread? false}}]
+   [:shared
+    {:source-paths ["dev"]
+     :eftest       {:multithread? false}}]
+
    :test
-   [:shared {:eftest {:multithread? false}}]
+   [:shared
+    {:eftest {:multithread? false}}]
+
+   :codox
+   [:shared
+    {:dependencies [[io.logicblocks/salutem.core :version]
+
+                    [org.clojure/core.async "_"]
+
+                    [io.logicblocks/cartus.core "_"]
+                    [io.logicblocks/cartus.null "_"]
+
+                    [tick "_"]]
+     :source-paths ["core/src"]}]
 
    :prerelease
    {:release-tasks
     [["shell" "git" "diff" "--exit-code"]
      ["change" "version" "leiningen.release/bump-version" "rc"]
+     ["modules" "change" "version" "leiningen.release/bump-version" "rc"]
      ["change" "version" "leiningen.release/bump-version" "release"]
+     ["modules" "change" "version" "leiningen.release/bump-version" "release"]
      ["vcs" "commit" "Pre-release version %s [skip ci]"]
      ["vcs" "tag"]
-     ["deploy"]]}
+     ["modules" "deploy"]]}
 
    :release
    {:release-tasks
     [["shell" "git" "diff" "--exit-code"]
      ["change" "version" "leiningen.release/bump-version" "release"]
-     ["codox"]
+     ["modules" "change" "version" "leiningen.release/bump-version" "release"]
+     ["modules" "install"]
      ["changelog" "release"]
-     ["shell" "sed" "-E" "-i.bak" "s/\"[0-9]+\\.[0-9]+\\.[0-9]+\"/\"${:version}\"/g" "README.md"]
+     ["shell" "sed" "-E" "-i.bak" "s/salutem\\.(.+) \"[0-9]+\\.[0-9]+\\.[0-9]+\"/salutem.\\\\1 \"${:version}\"/g" "README.md"]
      ["shell" "rm" "-f" "README.md.bak"]
+     ["shell" "sed" "-E" "-i.bak" "s/salutem\\.(.+) \"[0-9]+\\.[0-9]+\\.[0-9]+\"/salutem.\\\\1 \"${:version}\"/g" "docs/getting-started.md"]
+     ["shell" "rm" "-f" "docs/getting-started.md.bak"]
+     ["codox"]
      ["shell" "git" "add" "."]
      ["vcs" "commit" "Release version %s [skip ci]"]
      ["vcs" "tag"]
-     ["deploy"]
+     ["modules" "deploy"]
      ["change" "version" "leiningen.release/bump-version" "patch"]
+     ["modules" "change" "version" "leiningen.release/bump-version" "patch"]
      ["change" "version" "leiningen.release/bump-version" "rc"]
+     ["modules" "change" "version" "leiningen.release/bump-version" "rc"]
      ["change" "version" "leiningen.release/bump-version" "release"]
+     ["modules" "change" "version" "leiningen.release/bump-version" "release"]
      ["vcs" "commit" "Pre-release version %s [skip ci]"]
      ["vcs" "tag"]
      ["vcs" "push"]]}}
 
-  :cloverage
-  {:ns-exclude-regex [#"^user"]}
+  :source-paths []
 
   :codox
   {:namespaces  [#"^salutem\."]
@@ -81,12 +146,9 @@
    :doc-paths   ["docs"]
    :source-uri  "https://github.com/logicblocks/salutem/blob/{version}/{filepath}#L{line}"}
 
-  :cljfmt {:indents {#".*"     [[:inner 0]]
-                     defrecord [[:block 1] [:inner 1]]
-                     deftype   [[:block 1] [:inner 1]]}}
-
-  :eastwood {:config-files ["config/linter.clj"]}
-
-  :deploy-repositories
-  {"releases"  {:url "https://repo.clojars.org" :creds :gpg}
-   "snapshots" {:url "https://repo.clojars.org" :creds :gpg}})
+  :aliases {"eastwood" ["modules" "eastwood"]
+            "cljfmt"   ["modules" "cljfmt"]
+            "kibit"    ["modules" "kibit"]
+            "check"    ["modules" "check"]
+            "bikeshed" ["modules" "bikeshed"]
+            "eftest"   ["modules" "eftest"]})
