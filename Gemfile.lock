@@ -99,7 +99,7 @@ PLATFORMS
 DEPENDENCIES
   rake (~> 13.0)
   rake_circle_ci (~> 0.9)
-  rake_github (~> 0.3)
+  rake_github (~> 0.5)
   rake_gpg (~> 0.16)
   rake_leiningen (~> 0.20)
   rake_ssh (~> 0.4)
