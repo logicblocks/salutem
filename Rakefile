@@ -1,9 +1,10 @@
-require 'yaml'
-require 'rake_ssh'
-require 'rake_github'
 require 'rake_circle_ci'
-require 'ruby_leiningen'
+require 'rake_github'
+require 'rake_gpg'
 require 'rake_leiningen'
+require 'rake_ssh'
+require 'ruby_leiningen'
+require 'yaml'
 
 task :default => [
     :'library:initialise',
@@ -64,6 +65,7 @@ namespace :keys do
 end
 
 namespace :secrets do
+  desc 'Regenerate all secrets'
   task regenerate: %w[
     encryption:passphrase:generate
     keys:deploy:generate

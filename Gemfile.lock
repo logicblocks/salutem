@@ -65,6 +65,9 @@ GEM
       octokit (~> 4.16)
       rake_factory (~> 0.23)
       sshkey (~> 2.0)
+    rake_gpg (0.16.0)
+      rake_factory (>= 0.23, < 1)
+      ruby_gpg2 (>= 0.6, < 1)
     rake_leiningen (0.30.0)
       rake_dependencies (~> 2, < 3)
       rake_factory (>= 0.23, < 1)
@@ -75,6 +78,8 @@ GEM
       rake_factory (~> 0.23)
       sshkey (~> 2.0)
     ruby2_keywords (0.0.5)
+    ruby_gpg2 (0.8.0)
+      lino (>= 1.5)
     ruby_leiningen (0.23.0)
       activesupport (~> 6.0, >= 6.0.2)
       lino (>= 1.5)
@@ -93,10 +98,11 @@ PLATFORMS
 
 DEPENDENCIES
   rake (~> 13.0)
-  rake_circle_ci (~> 0.3)
+  rake_circle_ci (~> 0.9)
   rake_github (~> 0.3)
+  rake_gpg (~> 0.16)
   rake_leiningen (~> 0.20)
-  rake_ssh (~> 0.2)
+  rake_ssh (~> 0.4)
 
 BUNDLED WITH
    2.2.25
