@@ -1,6 +1,6 @@
 MIT License
 
-Copyright &copy; 2020 LogicBlocks Maintainers
+Copyright &copy; 2021 LogicBlocks Maintainers
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
