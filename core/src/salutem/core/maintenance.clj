@@ -110,23 +110,25 @@
             (log/info logger ::updater.stopped)))))))
 
 (defn maintain
-  [registry-store
-   {:keys [context
-           interval
-           trigger-channel
-           evaluation-channel
-           result-channel]
-    :or   {context            {}
-           interval           (t/new-duration 200 :millis)
-           trigger-channel    (async/chan (async/sliding-buffer 1))
-           evaluation-channel (async/chan 10)
-           result-channel     (async/chan 10)}}]
-  (let [logger (get context :logger (null/logger))
-        dependencies {:logger logger}]
-    (updater dependencies registry-store result-channel)
-    (evaluator dependencies evaluation-channel result-channel)
-    (refresher dependencies trigger-channel evaluation-channel)
-    (maintainer dependencies registry-store context interval trigger-channel)))
+  ([registry-store]
+   (maintain registry-store {}))
+  ([registry-store
+    {:keys [context
+            interval
+            trigger-channel
+            evaluation-channel
+            result-channel]
+     :or   {context            {}
+            interval           (t/new-duration 200 :millis)
+            trigger-channel    (async/chan (async/sliding-buffer 1))
+            evaluation-channel (async/chan 10)
+            result-channel     (async/chan 10)}}]
+   (let [logger (get context :logger (null/logger))
+         dependencies {:logger logger}]
+     (updater dependencies registry-store result-channel)
+     (evaluator dependencies evaluation-channel result-channel)
+     (refresher dependencies trigger-channel evaluation-channel)
+     (maintainer dependencies registry-store context interval trigger-channel))))
 
 (defn shutdown [shutdown-channel]
   (async/close! shutdown-channel))
