@@ -5,6 +5,7 @@
    [spy.core :as spy]
    [tick.alpha.api :as t]
 
+   [salutem.core.time :as time]
    [salutem.core.checks :as checks]
    [salutem.core.results :as results]
    [salutem.core.registry :as registry]))
@@ -33,11 +34,11 @@
   (let [check-1 (checks/background-check :thing-1
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
-                  {:ttl (t/new-duration 30 :seconds)})
+                  {:ttl (time/duration 30 :seconds)})
         check-2 (checks/background-check :thing-2
                   (fn [_ result-cb]
                     (result-cb (results/unhealthy)))
-                  {:ttl (t/new-duration 5 :minutes)})
+                  {:ttl (time/duration 5 :minutes)})
 
         outdated-check-1-result
         (results/healthy
@@ -60,15 +61,15 @@
   (let [check-1 (checks/background-check :thing-1
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
-                  {:ttl (t/new-duration 30 :seconds)})
+                  {:ttl (time/duration 30 :seconds)})
         check-2 (checks/background-check :thing-2
                   (fn [_ result-cb]
                     (result-cb (results/unhealthy)))
-                  {:ttl (t/new-duration 5 :minutes)})
+                  {:ttl (time/duration 5 :minutes)})
         check-3 (checks/background-check :thing-3
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
-                  {:ttl (t/new-duration 1 :minutes)})
+                  {:ttl (time/duration 1 :minutes)})
 
         outdated-check-1-result
         (results/healthy
@@ -96,15 +97,15 @@
   (let [check-1 (checks/background-check :thing-1
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
-                  {:ttl (t/new-duration 30 :seconds)})
+                  {:ttl (time/duration 30 :seconds)})
         check-2 (checks/background-check :thing-2
                   (fn [_ result-cb]
                     (result-cb (results/unhealthy)))
-                  {:ttl (t/new-duration 5 :minutes)})
+                  {:ttl (time/duration 5 :minutes)})
         check-3 (checks/background-check :thing-3
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
-                  {:ttl (t/new-duration 1 :minutes)})
+                  {:ttl (time/duration 1 :minutes)})
 
         current-check-2-result
         (results/healthy

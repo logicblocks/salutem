@@ -8,6 +8,7 @@
    [cartus.test :as cartus-test]
    [cartus.null :as cartus-null]
 
+   [salutem.core.time :as time]
    [salutem.core.checks :as checks]
    [salutem.core.results :as results]
    [salutem.core.maintenance :as maintenance]
@@ -28,7 +29,7 @@
   (let [logger (cartus-test/logger)
         dependencies {:logger logger}
         context {:some "context"}
-        interval (t/new-duration 50 :millis)
+        interval (time/duration 50 :millis)
 
         registry (registry/empty-registry)
         registry-store (atom registry)
@@ -48,7 +49,7 @@
   (let [logger (cartus-null/logger)
         dependencies {:logger logger}
         context {:some "context"}
-        interval (t/new-duration 50 :millis)
+        interval (time/duration 50 :millis)
 
         check (checks/background-check :thing
                 (fn [_ result-cb] (result-cb (results/healthy))))
@@ -84,7 +85,7 @@
   (let [test-logger (cartus-test/logger)
         dependencies {:logger test-logger}
         context {:some "context"}
-        interval (t/new-duration 50 :millis)
+        interval (time/duration 50 :millis)
 
         registry (registry/empty-registry)
         registry-store (atom registry)
@@ -111,7 +112,7 @@
   (let [logger (cartus-null/logger)
         dependencies {:logger logger}
         context {:some "context"}
-        interval (t/new-duration 200 :millis)
+        interval (time/duration 200 :millis)
 
         check (checks/background-check :thing
                 (fn [_ result-cb] (result-cb (results/healthy))))
@@ -134,7 +135,7 @@
   (let [test-logger (cartus-test/logger)
         dependencies {:logger test-logger}
         context {:some "context"}
-        interval (t/new-duration 200 :millis)
+        interval (time/duration 200 :millis)
 
         registry (registry/empty-registry)
         registry-store (atom registry)
@@ -208,7 +209,7 @@
         check
         (checks/background-check :thing
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:ttl (t/new-duration 30 :seconds)})
+          {:ttl (time/duration 30 :seconds)})
         outdated-result
         (results/healthy
           {:evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
@@ -244,15 +245,15 @@
         check-1
         (checks/background-check :thing-1
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:ttl (t/new-duration 30 :seconds)})
+          {:ttl (time/duration 30 :seconds)})
         check-2
         (checks/background-check :thing-2
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:ttl (t/new-duration 1 :minutes)})
+          {:ttl (time/duration 1 :minutes)})
         check-3
         (checks/background-check :thing-2
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:ttl (t/new-duration 45 :seconds)})
+          {:ttl (time/duration 45 :seconds)})
 
         check-1-outdated-result
         (results/healthy
@@ -298,15 +299,15 @@
         check-1
         (checks/background-check :thing-1
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:ttl (t/new-duration 30 :seconds)})
+          {:ttl (time/duration 30 :seconds)})
         check-2
         (checks/background-check :thing-2
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:ttl (t/new-duration 1 :minutes)})
+          {:ttl (time/duration 1 :minutes)})
         check-3
         (checks/background-check :thing-3
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:ttl (t/new-duration 45 :seconds)})
+          {:ttl (time/duration 45 :seconds)})
 
         check-1-outdated-result
         (results/healthy
@@ -358,7 +359,7 @@
         check
         (checks/background-check :thing
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:ttl (t/new-duration 30 :seconds)})
+          {:ttl (time/duration 30 :seconds)})
         outdated-result
         (results/healthy
           {:evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
@@ -632,7 +633,7 @@
                     (Thread/sleep 100)
                     (result-cb
                       (results/healthy))))
-                {:timeout (t/new-duration 50 :millis)})
+                {:timeout (time/duration 50 :millis)})
 
         trigger-id 1
 
@@ -663,7 +664,7 @@
                     (Thread/sleep 100)
                     (result-cb
                       (results/healthy))))
-                {:timeout (t/new-duration 50 :millis)})
+                {:timeout (time/duration 50 :millis)})
 
         trigger-id 1
 
@@ -934,7 +935,7 @@
                     (results/healthy
                       (merge (select-keys context [:some])
                         {:invocation-count @check-count}))))
-                {:ttl (t/new-duration 25 :millis)})
+                {:ttl (time/duration 25 :millis)})
 
         registry (-> (registry/empty-registry)
                    (registry/with-check check))
@@ -942,7 +943,7 @@
         registry-store (atom registry)
 
         context {:some " context "}
-        interval (t/new-duration 50 :millis)
+        interval (time/duration 50 :millis)
 
         maintenance-pipeline
         (maintenance/maintain registry-store

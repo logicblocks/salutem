@@ -1,9 +1,13 @@
 (ns salutem.core
   (:require
+   [salutem.core.time :as time]
    [salutem.core.checks :as checks]
    [salutem.core.results :as results]
    [salutem.core.registry :as registry]
    [salutem.core.maintenance :as maintenance]))
+
+; time
+(def duration time/duration)
 
 ; results
 (def result results/result)

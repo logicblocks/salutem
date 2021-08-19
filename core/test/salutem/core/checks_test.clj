@@ -2,8 +2,7 @@
   (:require
    [clojure.test :refer :all]
 
-   [tick.alpha.api :as t]
-
+   [salutem.core.time :as time]
    [salutem.core.checks :as checks]
    [salutem.core.results :as results]))
 
@@ -18,11 +17,11 @@
     (is (= (:name check) check-name))
     (is (= (:check-fn check) check-fn))
 
-    (is (= (:timeout check) (t/new-duration 10 :seconds)))
-    (is (= (:ttl check) (t/new-duration 10 :seconds)))))
+    (is (= (:timeout check) (time/duration 10 :seconds)))
+    (is (= (:ttl check) (time/duration 10 :seconds)))))
 
 (deftest creates-background-check-with-provided-timeout
-  (let [check-timeout (t/new-duration 5 :seconds)
+  (let [check-timeout (time/duration 5 :seconds)
         check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
@@ -30,7 +29,7 @@
     (is (= (:timeout check) check-timeout))))
 
 (deftest creates-background-check-with-provided-ttl
-  (let [check-ttl (t/new-duration 5 :seconds)
+  (let [check-ttl (time/duration 5 :seconds)
         check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
@@ -48,10 +47,10 @@
     (is (= (:name check) check-name))
     (is (= (:check-fn check) check-fn))
 
-    (is (= (:timeout check) (t/new-duration 10 :seconds)))))
+    (is (= (:timeout check) (time/duration 10 :seconds)))))
 
 (deftest creates-realtime-check-with-provided-timeout
-  (let [check-timeout (t/new-duration 5 :seconds)
+  (let [check-timeout (time/duration 5 :seconds)
         check (checks/realtime-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))

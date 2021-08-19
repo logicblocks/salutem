@@ -4,6 +4,7 @@
 
    [tick.alpha.api :as t]
 
+   [salutem.core.time :as time]
    [salutem.core.results :as results]
    [salutem.core.checks :as checks]))
 
@@ -55,7 +56,7 @@
   (let [check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:ttl (t/new-duration 30 :seconds)})
+                {:ttl (time/duration 30 :seconds)})
         result (results/healthy
                  {:evaluated-at (t/- (t/now) (t/new-duration 60 :seconds))})]
     (is (true? (results/outdated? result check)))))
@@ -64,7 +65,7 @@
   (let [check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:ttl (t/new-duration 60 :seconds)})
+                {:ttl (time/duration 60 :seconds)})
         result (results/healthy
                  {:evaluated-at (t/- (t/now) (t/new-duration 30 :seconds))})]
     (is (false? (results/outdated? result check)))))
@@ -74,7 +75,7 @@
         check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:ttl (t/new-duration 30 :seconds)})
+                {:ttl (time/duration 30 :seconds)})
         result (results/healthy
                  {:evaluated-at (t/- (t/now) (t/new-duration 151 :seconds))})]
     (is (true? (results/outdated? result check relative-to-instant)))))
@@ -84,7 +85,7 @@
         check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:ttl (t/new-duration 30 :seconds)})
+                {:ttl (time/duration 30 :seconds)})
         result (results/healthy
                  {:evaluated-at (t/- (t/now) (t/new-duration 149 :seconds))})]
     (is (false? (results/outdated? result check relative-to-instant)))))
@@ -93,6 +94,6 @@
   (let [check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:ttl (t/new-duration 30 :seconds)})
+                {:ttl (time/duration 30 :seconds)})
         result nil]
     (is (true? (results/outdated? result check)))))
