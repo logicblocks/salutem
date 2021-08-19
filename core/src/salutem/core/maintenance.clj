@@ -10,32 +10,34 @@
    [salutem.core.checks :as checks]
    [salutem.core.registry :as registry]))
 
-(defn maintainer [dependencies registry-store context interval trigger-channel]
-  (let [logger (:logger dependencies)
-        interval-millis (t/millis interval)
-        trigger-counter (atom 0)
-        shutdown-channel (async/chan)]
-    (log/info logger ::maintainer.starting {:interval interval})
-    (async/go
-      (loop []
-        (async/alt!
-          (async/timeout interval-millis)
-          (let [trigger-id (swap! trigger-counter inc)
-                registry (deref registry-store)]
-            (log/info logger ::maintainer.triggering
-              {:trigger-id trigger-id})
-            (async/>! trigger-channel
-              {:trigger-id trigger-id
-               :registry   registry
-               :context    context})
-            (recur))
+(defn maintainer
+  ([dependencies registry-store context interval trigger-channel]
+   (maintainer dependencies registry-store context interval trigger-channel (async/chan)))
+  ([dependencies registry-store context interval trigger-channel shutdown-channel]
+   (let [logger (:logger dependencies)
+         interval-millis (t/millis interval)
+         trigger-counter (atom 0)]
+     (log/info logger ::maintainer.starting {:interval interval})
+     (async/go
+       (loop []
+         (async/alt!
+           (async/timeout interval-millis)
+           (let [trigger-id (swap! trigger-counter inc)
+                 registry (deref registry-store)]
+             (log/info logger ::maintainer.triggering
+               {:trigger-id trigger-id})
+             (async/>! trigger-channel
+               {:trigger-id trigger-id
+                :registry   registry
+                :context    context})
+             (recur))
 
-          shutdown-channel
-          (let [triggers-sent (deref trigger-counter)]
-            (async/close! trigger-channel)
-            (log/info logger ::maintainer.stopped
-              {:triggers-sent triggers-sent})))))
-    shutdown-channel))
+           shutdown-channel
+           (let [triggers-sent (deref trigger-counter)]
+             (async/close! trigger-channel)
+             (log/info logger ::maintainer.stopped
+               {:triggers-sent triggers-sent})))))
+     shutdown-channel)))
 
 (defn refresher
   ([dependencies trigger-channel]
@@ -109,6 +111,24 @@
               (recur))
             (log/info logger ::updater.stopped)))))))
 
+(defn notifier
+  [dependencies callbacks result-channel]
+  (let [logger (:logger dependencies)]
+    (log/info logger ::notifier.starting)
+    (async/go
+      (loop []
+        (let [{:keys [check result trigger-id]
+               :as   result-message} (async/<! result-channel)]
+          (if result-message
+            (do
+              (log/info logger ::notifier.notifiying
+                {:trigger-id trigger-id
+                 :check-name (:name check)
+                 :result     result})
+              (doall (map #(% (merge check result)) callbacks))
+              (recur))
+            (log/info logger ::updater.stopped)))))))
+
 (defn maintain
   ([registry-store]
    (maintain registry-store {}))
@@ -117,18 +137,30 @@
             interval
             trigger-channel
             evaluation-channel
-            result-channel]
-     :or   {context            {}
-            interval           (t/new-duration 200 :millis)
-            trigger-channel    (async/chan (async/sliding-buffer 1))
-            evaluation-channel (async/chan 10)
-            result-channel     (async/chan 10)}}]
+            result-channel
+            updater-result-channel
+            notifier-result-channel
+            callback-fns]
+     :or   {context                    {}
+            interval                   (t/new-duration 200 :millis)
+            trigger-channel            (async/chan (async/sliding-buffer 1))
+            evaluation-channel         (async/chan 10)
+            result-channel             (async/chan 10)
+            updater-result-channel     (async/chan 10)
+            notifier-result-channel     (async/chan 10)
+            callback-fns               []}}]
    (let [logger (get context :logger (null/logger))
-         dependencies {:logger logger}]
-     (updater dependencies registry-store result-channel)
-     (evaluator dependencies evaluation-channel result-channel)
-     (refresher dependencies trigger-channel evaluation-channel)
-     (maintainer dependencies registry-store context interval trigger-channel))))
+         dependencies {:logger logger}
+         result-mult (async/mult result-channel)
+         shutdown-channel (async/chan)]
+
+     (async/go
+       (updater dependencies registry-store (async/tap result-mult updater-result-channel))
+       (notifier dependencies callback-fns (async/tap result-mult notifier-result-channel))
+       (evaluator dependencies evaluation-channel result-channel)
+       (refresher dependencies trigger-channel evaluation-channel)
+       (maintainer dependencies registry-store context interval trigger-channel shutdown-channel))
+     shutdown-channel)))
 
 (defn shutdown [shutdown-channel]
   (async/close! shutdown-channel))
