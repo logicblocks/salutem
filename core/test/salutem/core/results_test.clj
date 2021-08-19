@@ -52,6 +52,14 @@
         after (t/+ (t/now) (t/new-duration 1 :seconds))]
     (is (t/> after (:evaluated-at result) before))))
 
+(deftest is-always-outdated-if-check-is-realtime
+  (let [check (checks/realtime-check :thing
+                (fn [_ result-cb]
+                  (result-cb (results/healthy))))
+        result (results/healthy
+                 {:evaluated-at (t/- (t/now) (t/new-duration 60 :seconds))})]
+    (is (true? (results/outdated? result check)))))
+
 (deftest is-outdated-if-evaluated-at-older-than-now-minus-ttl
   (let [check (checks/background-check :thing
                 (fn [_ result-cb]

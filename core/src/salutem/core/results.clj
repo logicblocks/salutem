@@ -30,6 +30,8 @@
 (defn outdated?
   ([result check] (outdated? result check (t/now)))
   ([result check relative-to]
-   (or (nil? result)
+   (or
+     (= (:type check) :realtime)
+     (nil? result)
      (t/< (:evaluated-at result)
        (t/- relative-to (:ttl check))))))
