@@ -961,3 +961,63 @@
                            {:invocation-count 3}))))))
 
     (maintenance/shutdown maintenance-pipeline)))
+
+(deftest maintain-starts-pipeline-to-call-callback-functions
+  (let [callback-data (atom {})
+
+        callback-fn (fn [x]
+                      (reset! callback-data x))
+
+        check (checks/background-check
+                :thing
+                (fn [_ result-cb]
+                  (result-cb (results/healthy {:arbitrary-data "foo"}))))
+
+        registry (-> (registry/empty-registry)
+                   (registry/with-check check))
+
+        interval (t/new-duration 50 :millis)
+
+        maintenance-pipeline
+        (maintenance/maintain (atom registry)
+          {:interval interval
+           :callback-fns [callback-fn]})]
+
+    (async/<!! (async/timeout 75))
+
+    (is (= (:name @callback-data) :thing))
+    (is (= (:type @callback-data) :background))
+    (is (= (:status @callback-data) :healthy))
+    (is (= (:arbitrary-data @callback-data) "foo"))
+
+    (maintenance/shutdown maintenance-pipeline)))
+
+(deftest maintain-closes-all-channels
+  (let [evaluation-channel (async/chan 10)
+        trigger-channel (async/chan (async/sliding-buffer 1))
+        result-channel (async/chan 10)
+        notifier-result-channel (async/chan 10)
+        updater-result-channel (async/chan 10)
+
+        registry (registry/empty-registry)
+
+        interval (t/new-duration 50 :millis)
+
+        maintenance-pipeline
+        (maintenance/maintain (atom registry)
+          {:interval interval
+           :evaluation-channel evaluation-channel
+           :trigger-channel trigger-channel
+           :notifier-result-channel notifier-result-channel
+           :updater-result-channel updater-result-channel
+           :result-channel result-channel})]
+
+    (maintenance/shutdown maintenance-pipeline)
+
+    (async/<!! (async/timeout 75))
+
+    (is (= (<!!-or-timeout evaluation-channel) nil))
+    (is (= (<!!-or-timeout trigger-channel) nil))
+    (is (= (<!!-or-timeout result-channel) nil))
+    (is (= (<!!-or-timeout updater-result-channel) nil))
+    (is (= (<!!-or-timeout notifier-result-channel) nil))))
