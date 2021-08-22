@@ -796,16 +796,20 @@
        :check      check
        :result     result})
 
-    (loop [attempts 1]
-      (if @updated?
-        (is (= @registry-store
-              (registry/with-cached-result registry check result)))
-        (do
-          (async/<!! (async/timeout 25))
-          (and (< attempts 5) (recur (inc attempts))))))
-
-    (remove-watch registry-store :watcher)
-    (async/close! result-channel)))
+    (try
+      (loop [attempts 1]
+        (if @updated?
+          (is (= @registry-store
+                (registry/with-cached-result registry check result)))
+          (if (< attempts 5)
+            (do
+              (async/<!! (async/timeout 25))
+              (recur (inc attempts)))
+            (throw (ex-info "Registry was not updated before timeout."
+                     {:registry @registry-store})))))
+      (finally
+        (remove-watch registry-store :watcher)
+        (async/close! result-channel)))))
 
 (deftest updater-adds-many-results-to-registry-in-registry-store-atom
   (let [logger (cartus-null/logger)
@@ -821,7 +825,7 @@
         result-1 (results/healthy
                    {:latency (t/new-duration 267 :millis)})
         result-2 (results/unhealthy
-                   {:version " 1.2.3 "})
+                   {:version "1.2.3"})
         result-3 (results/unhealthy
                    {:items 1432})
 
@@ -856,19 +860,23 @@
        :check      check-3
        :result     result-3})
 
-    (loop [attempts 1]
-      (if (= @updated-count 3)
-        (is (= @registry-store
-              (-> registry
-                (registry/with-cached-result check-1 result-1)
-                (registry/with-cached-result check-2 result-2)
-                (registry/with-cached-result check-3 result-3))))
-        (do
-          (async/<!! (async/timeout 25))
-          (and (< attempts 5) (recur (inc attempts))))))
-
-    (remove-watch registry-store :watcher)
-    (async/close! result-channel)))
+    (try
+      (loop [attempts 1]
+        (if (= @updated-count 3)
+          (is (= @registry-store
+                (-> registry
+                  (registry/with-cached-result check-1 result-1)
+                  (registry/with-cached-result check-2 result-2)
+                  (registry/with-cached-result check-3 result-3))))
+          (if (< attempts 5)
+            (do
+              (async/<!! (async/timeout 25))
+              (recur (inc attempts)))
+            (throw (ex-info "Registry was not updated before timeout."
+                     {:registry @registry-store})))))
+      (finally
+        (remove-watch registry-store :watcher)
+        (async/close! result-channel)))))
 
 (deftest updater-logs-event-on-adding-result-to-registry
   (let [test-logger (cartus-test/logger)
@@ -925,6 +933,369 @@
            :level   :info
            :type    :salutem.core.maintenance/updater.stopped}))))
 
+(deftest notifier-logs-event-on-start-with-no-callbacks
+  (let [test-logger (cartus-test/logger)
+        dependencies {:logger test-logger}
+
+        callbacks []
+
+        result-channel (async/chan)]
+    (maintenance/notifier dependencies callbacks result-channel)
+
+    (is (logged? test-logger
+          {:level   :info
+           :type    :salutem.core.maintenance/notifier.starting
+           :context {:callbacks 0}}))
+
+    (async/close! result-channel)))
+
+(deftest notifier-logs-event-on-start-with-single-callback
+  (let [test-logger (cartus-test/logger)
+        dependencies {:logger test-logger}
+
+        callback (fn [_ _])
+        callbacks [callback]
+
+        result-channel (async/chan)]
+    (maintenance/notifier dependencies callbacks result-channel)
+
+    (is (logged? test-logger
+          {:level   :info
+           :type    :salutem.core.maintenance/notifier.starting
+           :context {:callbacks 1}}))
+
+    (async/close! result-channel)))
+
+(deftest notifier-logs-event-on-start-with-many-callbacks
+  (let [test-logger (cartus-test/logger)
+        dependencies {:logger test-logger}
+
+        callback-1 (fn [_ _])
+        callback-2 (fn [_ _])
+        callback-3 (fn [_ _])
+        callbacks [callback-1 callback-2 callback-3]
+
+        result-channel (async/chan)]
+    (maintenance/notifier dependencies callbacks result-channel)
+
+    (is (logged? test-logger
+          {:level   :info
+           :type    :salutem.core.maintenance/notifier.starting
+           :context {:callbacks 3}}))
+
+    (async/close! result-channel)))
+
+(deftest notifier-calls-single-callback-with-single-result
+  (let [logger (cartus-null/logger)
+        dependencies {:logger logger}
+
+        check (checks/background-check :thing
+                (fn [_ result-cb] (result-cb (results/healthy))))
+        result (results/healthy
+                 {:latency (t/new-duration 267 :millis)})
+
+        trigger-id 1
+
+        callback-calls (atom [])
+        callback (fn [check result]
+                   (swap! callback-calls conj [check result]))
+        callbacks [callback]
+
+        result-channel (async/chan)]
+    (maintenance/notifier dependencies callbacks result-channel)
+
+    (async/put! result-channel
+      {:trigger-id trigger-id
+       :check      check
+       :result     result})
+
+    (try
+      (loop [attempts 1]
+        (if (>= (count @callback-calls) 1)
+          (is (= @callback-calls [[check result]]))
+          (if (< attempts 5)
+            (do
+              (async/<!! (async/timeout 25))
+              (recur (inc attempts)))
+            (throw (ex-info
+                     "Callback was not called with result before timeout."
+                     {:check check :result result})))))
+      (finally
+        (async/close! result-channel)))))
+
+(deftest notifier-calls-many-callbacks-with-single-result
+  (let [logger (cartus-null/logger)
+        dependencies {:logger logger}
+
+        check (checks/background-check :thing
+                (fn [_ result-cb] (result-cb (results/healthy))))
+        result (results/healthy
+                 {:latency (t/new-duration 267 :millis)})
+
+        trigger-id 1
+
+        callback-1-calls (atom [])
+        callback-1 (fn [check result]
+                     (swap! callback-1-calls conj [check result]))
+        callback-2-calls (atom [])
+        callback-2 (fn [check result]
+                     (swap! callback-2-calls conj [check result]))
+        callbacks [callback-1 callback-2]
+
+        result-channel (async/chan)]
+    (maintenance/notifier dependencies callbacks result-channel)
+
+    (async/put! result-channel
+      {:trigger-id trigger-id
+       :check      check
+       :result     result})
+
+    (try
+      (loop [attempts 1]
+        (if (and
+              (>= (count @callback-1-calls) 1)
+              (>= (count @callback-2-calls) 1))
+          (do
+            (is (= @callback-1-calls [[check result]]))
+            (is (= @callback-2-calls [[check result]])))
+          (if (< attempts 5)
+            (do
+              (async/<!! (async/timeout 25))
+              (recur (inc attempts)))
+            (throw (ex-info
+                     "Callbacks were not called with result before timeout."
+                     {:check check :result result})))))
+      (finally
+        (async/close! result-channel)))))
+
+(deftest notifier-calls-single-callback-with-many-results
+  (let [logger (cartus-null/logger)
+        dependencies {:logger logger}
+
+        check-1 (checks/background-check :thing-1
+                  (fn [_ result-cb] (result-cb (results/healthy))))
+        check-2 (checks/background-check :thing-2
+                  (fn [_ result-cb] (result-cb (results/healthy))))
+        check-3 (checks/background-check :thing-3
+                  (fn [_ result-cb] (result-cb (results/healthy))))
+
+        result-1 (results/healthy
+                   {:latency (t/new-duration 267 :millis)})
+        result-2 (results/unhealthy
+                   {:version "1.2.3"})
+        result-3 (results/unhealthy
+                   {:items 1432})
+
+        trigger-id 1
+
+        callback-1-calls (atom [])
+        callback-1 (fn [check result]
+                     (swap! callback-1-calls conj [check result]))
+        callback-2-calls (atom [])
+        callback-2 (fn [check result]
+                     (swap! callback-2-calls conj [check result]))
+        callbacks [callback-1 callback-2]
+
+        result-channel (async/chan 10)]
+    (maintenance/notifier dependencies callbacks result-channel)
+
+    (async/put! result-channel
+      {:trigger-id trigger-id
+       :check      check-1
+       :result     result-1})
+    (async/put! result-channel
+      {:trigger-id trigger-id
+       :check      check-2
+       :result     result-2})
+    (async/put! result-channel
+      {:trigger-id trigger-id
+       :check      check-3
+       :result     result-3})
+
+    (try
+      (loop [attempts 1]
+        (if (and
+              (>= (count @callback-1-calls) 1)
+              (>= (count @callback-2-calls) 1))
+          (do
+            (is (= @callback-1-calls
+                  [[check-1 result-1]
+                   [check-2 result-2]
+                   [check-3 result-3]]))
+            (is (= @callback-2-calls
+                  [[check-1 result-1]
+                   [check-2 result-2]
+                   [check-3 result-3]])))
+          (if (< attempts 5)
+            (do
+              (async/<!! (async/timeout 25))
+              (recur (inc attempts)))
+            (throw (ex-info
+                     "Callbacks were not called with results before timeout."
+                     {:checks  [check-1 check-2 check-3]
+                      :results [result-1 result-2 result-3]})))))
+      (finally
+        (async/close! result-channel)))))
+
+(deftest notifier-calls-many-callbacks-with-many-results
+  (let [logger (cartus-null/logger)
+        dependencies {:logger logger}
+
+        check-1 (checks/background-check :thing-1
+                  (fn [_ result-cb] (result-cb (results/healthy))))
+        check-2 (checks/background-check :thing-2
+                  (fn [_ result-cb] (result-cb (results/healthy))))
+        check-3 (checks/background-check :thing-3
+                  (fn [_ result-cb] (result-cb (results/healthy))))
+
+        result-1 (results/healthy
+                   {:latency (t/new-duration 267 :millis)})
+        result-2 (results/unhealthy
+                   {:version "1.2.3"})
+        result-3 (results/unhealthy
+                   {:items 1432})
+
+        trigger-id 1
+
+        callback-calls (atom [])
+        callback (fn [check result]
+                   (swap! callback-calls conj [check result]))
+        callbacks [callback]
+
+        result-channel (async/chan 10)]
+    (maintenance/notifier dependencies callbacks result-channel)
+
+    (async/put! result-channel
+      {:trigger-id trigger-id
+       :check      check-1
+       :result     result-1})
+    (async/put! result-channel
+      {:trigger-id trigger-id
+       :check      check-2
+       :result     result-2})
+    (async/put! result-channel
+      {:trigger-id trigger-id
+       :check      check-3
+       :result     result-3})
+
+    (try
+      (loop [attempts 1]
+        (if (>= (count @callback-calls) 3)
+          (is (= @callback-calls
+                [[check-1 result-1]
+                 [check-2 result-2]
+                 [check-3 result-3]]))
+          (if (< attempts 5)
+            (do
+              (async/<!! (async/timeout 25))
+              (recur (inc attempts)))
+            (throw (ex-info
+                     "Callback was not called with results before timeout."
+                     {:checks  [check-1 check-2 check-3]
+                      :results [result-1 result-2 result-3]})))))
+      (finally
+        (async/close! result-channel)))))
+
+(deftest notifier-logs-event-on-triggering-single-callback-with-result
+  (let [test-logger (cartus-test/logger)
+        dependencies {:logger test-logger}
+
+        check (checks/background-check :thing
+                (fn [_ result-cb] (result-cb (results/healthy))))
+        result (results/healthy
+                 {:latency (t/new-duration 267 :millis)})
+
+        trigger-id 2
+
+        callback (fn [_ _])
+        callbacks [callback]
+
+        result-channel (async/chan)]
+    (maintenance/notifier dependencies callbacks result-channel)
+
+    (async/put! result-channel
+      {:trigger-id trigger-id
+       :check      check
+       :result     result})
+
+    (async/<!! (async/timeout 25))
+
+    (is (logged? test-logger
+          {:context {:trigger-id trigger-id
+                     :check-name :thing
+                     :result     result
+                     :callback   1}
+           :level   :info
+           :type    :salutem.core.maintenance/notifier.notifying}))
+
+    (async/close! result-channel)))
+
+(deftest notifier-logs-event-on-triggering-many-callbacks-with-result
+  (let [test-logger (cartus-test/logger)
+        dependencies {:logger test-logger}
+
+        check (checks/background-check :thing
+                (fn [_ result-cb] (result-cb (results/healthy))))
+        result (results/healthy
+                 {:latency (t/new-duration 267 :millis)})
+
+        trigger-id 2
+
+        callback-1 (fn [_ _])
+        callback-2 (fn [_ _])
+        callback-3 (fn [_ _])
+        callbacks [callback-1 callback-2 callback-3]
+
+        result-channel (async/chan)]
+    (maintenance/notifier dependencies callbacks result-channel)
+
+    (async/put! result-channel
+      {:trigger-id trigger-id
+       :check      check
+       :result     result})
+
+    (async/<!! (async/timeout 25))
+
+    (is (logged? test-logger
+          {:context {:trigger-id trigger-id
+                     :check-name :thing
+                     :result     result
+                     :callback   1}
+           :level   :info
+           :type    :salutem.core.maintenance/notifier.notifying}
+          {:context {:trigger-id trigger-id
+                     :check-name :thing
+                     :result     result
+                     :callback   2}
+           :level   :info
+           :type    :salutem.core.maintenance/notifier.notifying}
+          {:context {:trigger-id trigger-id
+                     :check-name :thing
+                     :result     result
+                     :callback   3}
+           :level   :info
+           :type    :salutem.core.maintenance/notifier.notifying}))
+
+    (async/close! result-channel)))
+
+(deftest notifier-logs-event-on-shutdown
+  (let [test-logger (cartus-test/logger)
+        dependencies {:logger test-logger}
+
+        callbacks []
+
+        result-channel (async/chan)]
+    (maintenance/notifier dependencies callbacks result-channel)
+
+    (async/close! result-channel)
+
+    (async/<!! (async/timeout 50))
+
+    (is (logged? test-logger
+          {:context {}
+           :level   :info
+           :type    :salutem.core.maintenance/notifier.stopped}))))
+
 (deftest maintain-starts-pipeline-to-refresh-registry
   (let [check-count (atom 0)
 
@@ -942,7 +1313,7 @@
 
         registry-store (atom registry)
 
-        context {:some " context "}
+        context {:some "context"}
         interval (time/duration 50 :millis)
 
         maintenance-pipeline
@@ -962,55 +1333,26 @@
 
     (maintenance/shutdown maintenance-pipeline)))
 
-(deftest maintain-starts-pipeline-to-call-callback-functions
-  (let [callback-data (atom {})
-
-        callback-fn (fn [x]
-                      (reset! callback-data x))
-
-        check (checks/background-check
-                :thing
-                (fn [_ result-cb]
-                  (result-cb (results/healthy {:arbitrary-data "foo"}))))
-
-        registry (-> (registry/empty-registry)
-                   (registry/with-check check))
-
-        interval (t/new-duration 50 :millis)
-
-        maintenance-pipeline
-        (maintenance/maintain (atom registry)
-          {:interval interval
-           :callback-fns [callback-fn]})]
-
-    (async/<!! (async/timeout 75))
-
-    (is (= (:name @callback-data) :thing))
-    (is (= (:type @callback-data) :background))
-    (is (= (:status @callback-data) :healthy))
-    (is (= (:arbitrary-data @callback-data) "foo"))
-
-    (maintenance/shutdown maintenance-pipeline)))
-
-(deftest maintain-closes-all-channels
-  (let [evaluation-channel (async/chan 10)
-        trigger-channel (async/chan (async/sliding-buffer 1))
+(deftest shutdown-closes-all-channels-in-the-maintain-pipeline
+  (let [trigger-channel (async/chan (async/sliding-buffer 1))
+        evaluation-channel (async/chan 10)
         result-channel (async/chan 10)
-        notifier-result-channel (async/chan 10)
         updater-result-channel (async/chan 10)
+        notifier-result-channel (async/chan 10)
 
         registry (registry/empty-registry)
+        registry-store (atom registry)
 
-        interval (t/new-duration 50 :millis)
+        interval (time/duration 50 :millis)
 
         maintenance-pipeline
-        (maintenance/maintain (atom registry)
-          {:interval interval
-           :evaluation-channel evaluation-channel
-           :trigger-channel trigger-channel
-           :notifier-result-channel notifier-result-channel
-           :updater-result-channel updater-result-channel
-           :result-channel result-channel})]
+        (maintenance/maintain registry-store
+          {:interval                interval
+           :evaluation-channel      evaluation-channel
+           :trigger-channel         trigger-channel
+           :result-channel          result-channel
+           :updater-result-channel  updater-result-channel
+           :notifier-result-channel notifier-result-channel})]
 
     (maintenance/shutdown maintenance-pipeline)
 

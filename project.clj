@@ -81,12 +81,10 @@
 
    :dev
    [:shared
-    {:source-paths ["dev"]
-     :eftest       {:multithread? false}}]
+    {:source-paths ["dev"]}]
 
    :test
-   [:shared
-    {:eftest {:multithread? false}}]
+   [:shared]
 
    :codox
    [:shared
