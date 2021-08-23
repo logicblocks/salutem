@@ -23,7 +23,7 @@
 
     :plugins [[lein-cloverage "1.1.2"]
               [lein-shell "0.5.0"]
-              [lein-cprint "1.3.3"]
+              [lein-pprint "1.3.2"]
               [lein-ancient "0.6.15"]
               [lein-eftest "0.5.9"]
               [lein-cljfmt "0.7.0"]
@@ -121,6 +121,8 @@
      ["shell" "sed" "-E" "-i.bak" "s/salutem\\.(.+) \"[0-9]+\\.[0-9]+\\.[0-9]+\"/salutem.\\\\1 \"${:version}\"/g" "docs/getting-started.md"]
      ["shell" "rm" "-f" "docs/getting-started.md.bak"]
      ["codox"]
+     ["shell" "sed" "-E" "-i.bak" "s/\\[io\\.logicblocks\\/salutem \"[0-9]+\\.[0-9]+\\.[0-9]+\"\\]/[io.logicblocks\\/salutem.core \"${:version}\"]/g" "docs/index.html"]
+     ["shell" "rm" "-f" "docs/index.html.bak"]
      ["shell" "git" "add" "."]
      ["vcs" "commit" "Release version %s [skip ci]"]
      ["vcs" "tag"]

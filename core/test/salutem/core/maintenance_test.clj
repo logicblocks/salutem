@@ -1321,7 +1321,7 @@
           {:context  context
            :interval interval})]
 
-    (async/<!! (async/timeout 175))
+    (async/<!! (async/timeout 190))
 
     (letfn [(time-free [result]
               (dissoc result :evaluated-at))]
@@ -1333,7 +1333,7 @@
 
     (maintenance/shutdown maintenance-pipeline)))
 
-(deftest shutdown-closes-all-channels-in-the-maintain-pipeline
+(deftest shutdown-closes-all-channels-in-the-maintenance-pipeline
   (let [trigger-channel (async/chan (async/sliding-buffer 1))
         evaluation-channel (async/chan 10)
         result-channel (async/chan 10)

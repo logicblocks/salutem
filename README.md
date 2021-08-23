@@ -4,7 +4,14 @@
 [![Clojars Downloads](https://img.shields.io/clojars/dt/io.logicblocks/salutem.core.svg)](https://clojars.org/io.logicblocks/salutem.core)
 [![GitHub Contributors](https://img.shields.io/github/contributors-anon/logicblocks/salutem.svg)](https://github.com/logicblocks/salutem/graphs/contributors)
 
-A health check library for sync / async health checks.
+A system for defining and maintaining a collection of health checks.
+
+`salutem` supports:
+* both realtime and background checks
+* a registry for storing, finding and resolving checks
+* a maintenance system for ensuring that the results of checks are kept 
+  up-to-date according to their definition
+* 
 
 ## Install
 
@@ -73,21 +80,29 @@ Add the following to your `project.clj` file:
 
 ## Documentation
 
-Salutem allows for health checking of dependencies and other systems without causing circular references between services.
+Salutem allows for health checking of dependencies and other systems without 
+causing circular references between services.
 
-It does this by taking a configurable set of checks and polling them asynchronously on a schedule that you decide. This is then cached within Salutem and can be read from when needed.
+It does this by taking a configurable set of checks and polling them 
+asynchronously on a schedule that you decide. This is then cached within 
+Salutem and can be read from when needed.
 
-Salutem also allows for synchronous checks that can be performed at the time of request.
+Salutem also allows for synchronous checks that can be performed at the time of 
+request.
 
 The two main components of Salutem are the `registry` and the `checks`.
 
 ### Registry
 
-The registry should be an `atom` that you maintain within your system. This is responsible for holding the latest state of your checks. A full example of how to set up a registry can be seen in [Usage](#Usage).
+The registry should be an `atom` that you maintain within your system. This is 
+responsible for holding the latest state of your checks. A full example of how 
+to set up a registry can be seen in [Usage](#Usage).
 
 ### Checks
 
-Checks take a function with `context` and `callback-fn` parameters which should return either a `salutem.core/healthy` or `salutem.core/unhealthy` result, like so:
+Checks take a function with `context` and `callback-fn` parameters which should 
+return either a `salutem.core/healthy` or `salutem.core/unhealthy` result, like 
+so:
 
 ```clojure
 (require '[salutem.core :as health])
@@ -104,7 +119,8 @@ Checks take a function with `context` and `callback-fn` parameters which should 
     (is-healthy?)))
 ```
 
-These can also return additional information along with the health status by passing a map.
+These can also return additional information along with the health status by 
+passing a map.
 
 ```clojure
 (require '[salutem.core :as health])
@@ -118,10 +134,11 @@ These can also return additional information along with the health status by pas
 
 ### Additional Callback Functions
 
-Additionally, `maintain` can be called with a list of functions that will be called when the check is updated. These are passed a map by Salutem and can be used to update other systems with results of the checks.
+Additionally, `maintain` can be called with a list of functions that will be 
+called when the check is updated. These are passed a map by Salutem and can be 
+used to update other systems with results of the checks.
 
 ```clojure
-
 (defn print-check-data
   [data]
   (println data))
@@ -146,7 +163,8 @@ Additionally, `maintain` can be called with a list of functions that will be cal
  :evaluated-at #time/instant "2021-08-20T17:23:58.172499Z"}
 ```
 
-This allows you to update logs or other systems that would benefit from having the information retrieved by the check, without having to do this yourself.
+This allows you to update logs or other systems that would benefit from having 
+the information retrieved by the check, without having to do this yourself.
 
 ## License
 

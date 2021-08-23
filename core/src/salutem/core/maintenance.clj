@@ -1,4 +1,6 @@
 (ns salutem.core.maintenance
+  "Provides an asynchronous maintenance pipeline for maintaining up-to-date
+  results for the checks in a registry."
   (:require
    [clojure.core.async :as async]
 
@@ -131,6 +133,58 @@
           (log/info logger ::notifier.stopped))))))
 
 (defn maintain
+  "Constructs and starts a maintenance pipeline to maintain up-to-date results
+   for the checks in the registry in the provided registry store atom.
+
+   The maintenance pipeline consists of a number of independent processes:
+
+     - a _maintainer_ which triggers an attempt to refresh the results
+       periodically,
+     - a _refresher_ which requests evaluation of each outdated check on each
+       refresh attempt,
+     - an _evaluator_ which evaluates outdated checks to obtain a fresh result,
+     - an _updater_ which updates the registry store atom with fresh check
+       results,
+     - a _notifier_ which calls callback functions when fresh check results are
+       available.
+
+   The maintenance pipeline can be configured via an optional map which
+   can contain the following options:
+
+     - `:context`: a map containing arbitrary context required by checks in
+       order to run and passed to the check functions as the first
+       argument; defaults to an empty map
+     - `:interval`: a [[duration]] describing the wait interval between
+       attempts to refresh the results in the registry; defaults to 200
+       milliseconds
+     - `:callback-fns`: a sequence of arity-2 functions, with the first
+       argument being a check and the second argument being a result, which
+       are called whenever a new result is available for a check; empty by
+       default
+     - `:trigger-channel`: the channel on which trigger messages are sent, to
+       indicate that a refresh of the registry should be attempted, defaults
+       to a channel with a sliding buffer of length 1, i.e., in the case of a
+       long running attempt, all but the latest trigger message will be dropped
+       from the channel
+     - `:evaluation-channel`: the channel on which messages requesting
+       evaluation of checks are sent, defaults to a channel with a buffer of
+       size 10
+     - `:result-channel`: the channel on which results are placed after
+       evaluation, defaults to a channel with a buffer of size 10
+     - `:updater-result-channel`: a tap of the `result-channel` which sends
+       result messages on to the updater, defaults to a channel with a buffer
+       of size 10
+     - `:notifier-result-channel`: a tap of the `result-channel` which sends
+       result messages on to the notifier, defaults to a channel with a buffer
+       of size 10
+
+   If the context map contains a `:logger` key with a
+   [`cartus.core/Logger`](https://logicblocks.github.io/cartus/cartus.core.html#var-Logger)
+   value, the maintenance pipeline will emit a number of log events
+   throughout operation.
+
+   Returns the maintenance pipeline which can be passed to [[shutdown]] in
+   order to stop operation."
   ([registry-store]
    (maintain registry-store {}))
   ([registry-store
@@ -163,7 +217,10 @@
        (refresher dependencies trigger-channel evaluation-channel)
        (maintainer dependencies registry-store context interval
          trigger-channel shutdown-channel))
-     shutdown-channel)))
+     {:shutdown-channel shutdown-channel})))
 
-(defn shutdown [shutdown-channel]
-  (async/close! shutdown-channel))
+(defn shutdown
+  "Shuts down the maintenance pipeline preventing further updates to the
+   registry."
+  [maintenance-pipeline]
+  (async/close! (:shutdown-channel maintenance-pipeline)))
