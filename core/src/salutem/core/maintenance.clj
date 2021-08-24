@@ -157,9 +157,9 @@
      - `:interval`: a [[duration]] describing the wait interval between
        attempts to refresh the results in the registry; defaults to 200
        milliseconds
-     - `:callback-fns`: a sequence of arity-2 functions, with the first
-       argument being a check and the second argument being a result, which
-       are called whenever a new result is available for a check; empty by
+     - `:notification-callback-fns`: a sequence of arity-2 functions, with the
+       first argument being a check and the second argument being a result,
+       which are called whenever a new result is available for a check; empty by
        default
      - `:trigger-channel`: the channel on which trigger messages are sent, to
        indicate that a refresh of the registry should be attempted, defaults
@@ -195,15 +195,15 @@
             result-channel
             updater-result-channel
             notifier-result-channel
-            callback-fns]
-     :or   {context                 {}
-            interval                (t/new-duration 200 :millis)
-            trigger-channel         (async/chan (async/sliding-buffer 1))
-            evaluation-channel      (async/chan 10)
-            result-channel          (async/chan 10)
-            updater-result-channel  (async/chan 10)
-            notifier-result-channel (async/chan 10)
-            callback-fns            []}}]
+            notification-callback-fns]
+     :or   {context                   {}
+            interval                  (t/new-duration 200 :millis)
+            trigger-channel           (async/chan (async/sliding-buffer 1))
+            evaluation-channel        (async/chan 10)
+            result-channel            (async/chan 10)
+            updater-result-channel    (async/chan 10)
+            notifier-result-channel   (async/chan 10)
+            notification-callback-fns []}}]
    (let [logger (get context :logger (null/logger))
          dependencies {:logger logger}
          result-mult (async/mult result-channel)
@@ -211,7 +211,7 @@
      (async/go
        (updater dependencies registry-store
          (async/tap result-mult updater-result-channel))
-       (notifier dependencies callback-fns
+       (notifier dependencies notification-callback-fns
          (async/tap result-mult notifier-result-channel))
        (evaluator dependencies evaluation-channel result-channel)
        (refresher dependencies trigger-channel evaluation-channel)

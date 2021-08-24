@@ -268,9 +268,9 @@
      - `:interval`: a [[duration]] describing the wait interval between
        attempts to refresh the results in the registry; defaults to 200
        milliseconds
-     - `:callback-fns`: a sequence of arity-2 functions, with the first
-       argument being a check and the second argument being a result, which
-       are called whenever a new result is available for a check; empty by
+     - `:notification-callback-fns`: a sequence of arity-2 functions, with the
+       first argument being a check and the second argument being a result,
+       which are called whenever a new result is available for a check; empty by
        default
      - `:trigger-channel`: the channel on which trigger messages are sent, to
        indicate that a refresh of the registry should be attempted, defaults
