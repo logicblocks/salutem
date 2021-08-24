@@ -2,6 +2,7 @@
 
 `salutem` is a system for defining and maintaining a collection of 
 health checks with support for:
+
 * both realtime and background checks,
 * a registry for storing, finding and resolving checks, and
 * an asynchronous maintenance system for ensuring that the results of checks
