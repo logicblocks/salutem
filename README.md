@@ -9,9 +9,8 @@ A system for defining and maintaining a collection of health checks.
 `salutem` supports:
 * both realtime and background checks
 * a registry for storing, finding and resolving checks
-* a maintenance system for ensuring that the results of checks are kept 
-  up-to-date according to their definition
-* 
+* an asynchronous maintenance system for ensuring that the results of checks 
+  are kept up-to-date according to their definition
 
 ## Install
 
