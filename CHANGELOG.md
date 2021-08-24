@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 
 ## [Unreleased]
+
+## [0.1.0] — 2021-08-24
 ### Added
 - _CHANGELOG.md_ created.
 
@@ -14,4 +16,5 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 Released without _CHANGELOG.md_.
 
 
-[Unreleased]: https://github.com/logicblocks/salutem/compare/0.1.0-RC19...HEAD
+[0.1.0]: https://github.com/logicblocks/salutem/compare/0.1.0-RC19...0.1.0
+[Unreleased]: https://github.com/logicblocks/salutem/compare/0.1.0...HEAD
