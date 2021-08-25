@@ -72,7 +72,6 @@
                    [org.clojure/tools.trace "_"]
 
                    [io.logicblocks/cartus.test "_"]
-                   [io.logicblocks/cartus.null "_"]
 
                    [nrepl "_"]
 
