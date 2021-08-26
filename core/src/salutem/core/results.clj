@@ -39,7 +39,8 @@
 
 (defn healthy?
   "Returns `true` if the result has a `:healthy` status, `false`
-   otherwise."[result]
+   otherwise."
+  [result]
   (= (:status result) :healthy))
 
 (defn unhealthy?
