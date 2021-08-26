@@ -1,4 +1,4 @@
-(defproject io.logicblocks/salutem.core "0.1.1-RC3"
+(defproject io.logicblocks/salutem.core "0.1.1"
   :description "A health check library for sync / async health checks."
 
   :plugins [[lein-modules "0.3.11"]]
