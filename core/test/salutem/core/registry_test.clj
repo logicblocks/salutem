@@ -280,8 +280,8 @@
                 {:ttl (time/duration 1 :minutes)})
         result (results/healthy {:call 0})
         registry (-> (registry/empty-registry)
-                   (with-check check)
-                   (with-cached-result result))
+                   (registry/with-check check)
+                   (registry/with-cached-result result))
                    
         updated-registry (registry/refresh-result registry :thing)
         
