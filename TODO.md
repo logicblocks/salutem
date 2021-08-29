@@ -5,6 +5,11 @@ ToDo
 * Include context of timeout in unhealthy response on attempt timeout
 * Add database check function
 * Add service check function
+* Add RegistryStore to domain diagram and definitions
+* Add `refresh-results` function to registry namespace and expose
+* Consider introducing start-channel to separate creation from execution, and 
+  renaming shutdown channel to stop channel
+* Consider a Completer process to capture when a trigger has fully completed
 
 Open Questions
 ==============
