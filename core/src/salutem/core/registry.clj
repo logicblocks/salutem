@@ -101,4 +101,6 @@
 
 (defn refresh-result
   [registry check-name]
-  registry)
+  (with-cached-result registry
+    (find-check check-name)
+    (resolve-check registry check-name)))
