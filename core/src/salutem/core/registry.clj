@@ -98,3 +98,7 @@
        (fn [check-name]
          [check-name (resolve-check registry check-name context)])
        (check-names registry)))))
+
+(def refresh-result
+  [registry check-name]
+  registry)

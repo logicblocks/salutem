@@ -212,28 +212,6 @@
           (get-in resolved-results-2 [:thing-2 :evaluated-at])
           (get-in resolved-results-1 [:thing-2 :evaluated-at])))))
 
-(deftest resolves-background-checks-when-no-cached-result-available
-  (let [check-fn-1 (spy/spy
-                     (fn [_ result-cb]
-                       (result-cb (results/unhealthy))))
-        check-fn-2 (spy/spy
-                     (fn [_ result-cb]
-                       (result-cb (results/healthy))))
-
-        check-1 (checks/background-check :thing-1 check-fn-1)
-        check-2 (checks/background-check :thing-2 check-fn-2)
-
-        registry (-> (registry/empty-registry)
-                   (registry/with-check check-1)
-                   (registry/with-check check-2))
-
-        resolved-results (registry/resolve-checks registry)]
-    (is (= (count (spy/calls check-fn-1)) 1))
-    (is (= (count (spy/calls check-fn-2)) 1))
-
-    (is (results/unhealthy? (:thing-1 resolved-results)))
-    (is (results/healthy? (:thing-2 resolved-results)))))
-
 (deftest resolves-background-checks-as-previous-results-when-available
   (let [check-fn-1 (spy/spy
                      (fn [_ result-cb]
@@ -260,3 +238,52 @@
 
     (is (results/healthy? (:thing-1 resolved-results)))
     (is (results/unhealthy? (:thing-2 resolved-results)))))
+
+(deftest refreshes-realtime-check-every-time
+  (let [call-counter (atom 0)
+        check-fn (fn [_ result-cb]
+                     (swap! call-counter inc)
+                     (result-cb (results/healthy {:call @call-counter})))
+        check (checks/realtime-check :thing check-fn)
+        registry (registry/with-check (registry/empty-registry) check)
+
+        updated-registry-1 (registry/refresh-result registry :thing)
+        updated-registry-2 (registry/refresh-result updated-registry-1 :thing)
+        
+        cached-result-1 (registry/find-cached-result updated-registry-1 :thing)
+        cached-result-2 (registry/find-cached-result updated-registry-2 :thing)]
+    (is (= 1 (:call cached-result-1)))
+    (is (= 2 (:call cached-result-2)))
+    (is (t/>
+          (:evaluated-at cached-result-2)
+          (:evaluated-at cached-result-1)))))
+
+(deftest refreshes-background-check-when-no-cached-result
+  (let [call-counter (atom 0)
+        check-fn (fn [_ result-cb]
+                     (swap! call-counter inc)
+                     (result-cb (results/healthy {:call @call-counter})))
+        check (checks/background-check :thing check-fn)
+        registry (registry/with-check (registry/empty-registry) check)
+
+        updated-registry (registry/refresh-result registry :thing)
+        
+        cached-result (registry/find-cached-result updated-registry :thing)]
+    (is (= 1 (:call cached-result)))))
+
+(deftest does-not-refresh-background-check-when-cached-result-within-ttl
+  (let [call-counter (atom 0)
+        check-fn (fn [_ result-cb]
+                     (swap! call-counter inc)
+                     (result-cb (results/healthy {:call @call-counter})))
+        check (checks/background-check :thing check-fn
+                {:ttl (time/duration 1 :minutes)})
+        result (results/healthy {:call 0})
+        registry (-> (registry/empty-registry)
+                   (with-check check)
+                   (with-cached-result result))
+                   
+        updated-registry (registry/refresh/result registry :thing)
+        
+        cached-result (registry/find-cached-result updated-registry :thing)]
+  (is (= result cached-result))))
