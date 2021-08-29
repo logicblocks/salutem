@@ -287,3 +287,22 @@
         
         cached-result (registry/find-cached-result updated-registry :thing)]
   (is (= result cached-result))))
+  
+(deftest refreshes-background-check-when-cached-result-expired
+  (let [call-counter (atom 0)
+        check-fn (fn [_ result-cb]
+                     (swap! call-counter inc)
+                     (result-cb (results/healthy {:call @call-counter})))
+        check (checks/background-check :thing check-fn
+                {:ttl (time/duration 1 :minutes)})
+        result (results/healthy 
+                 {:call 0
+                  :evaluated-at  (t/- (t/now) (t/new-duration 2 :minutes))})
+        registry (-> (registry/empty-registry)
+                   (registry/with-check check)
+                   (registry/with-cached-result check result))
+                   
+        updated-registry (registry/refresh-result registry :thing)
+        
+        cached-result (registry/find-cached-result updated-registry :thing)]
+  (is (= 1 (:call cached-result)))))
