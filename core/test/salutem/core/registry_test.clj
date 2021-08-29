@@ -283,7 +283,7 @@
                    (with-check check)
                    (with-cached-result result))
                    
-        updated-registry (registry/refresh/result registry :thing)
+        updated-registry (registry/refresh-result registry :thing)
         
         cached-result (registry/find-cached-result updated-registry :thing)]
   (is (= result cached-result))))
