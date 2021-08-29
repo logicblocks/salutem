@@ -99,6 +99,6 @@
          [check-name (resolve-check registry check-name context)])
        (check-names registry)))))
 
-(def refresh-result
+(defn refresh-result
   [registry check-name]
   registry)
