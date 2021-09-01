@@ -62,9 +62,10 @@
 (defn resolve-check
   "Resolves a result for the check of the given name in the registry.
 
-   If the check is a background check and there is a cached result available,
-   it is returned. If no cached result is available, the check is evaluated in
-   order to obtain a result to return.
+   If the check is a background check and there is a valid cached result
+   available, it is returned. If the cached result is outdated or if no cached
+   result is available, the check is evaluated in order to obtain a result to
+   return.
 
    If the check is a realtime check, it is always evaluated in order to obtain
    a result to return and caching is not used.
@@ -77,7 +78,7 @@
   ([registry check-name context]
    (let [check (find-check registry check-name)
          result (find-cached-result registry check-name)]
-     (if (or (checks/realtime? check) (not result))
+     (if (results/outdated? result check)
        (checks/evaluate check context)
        result))))
 
@@ -99,7 +100,18 @@
          [check-name (resolve-check registry check-name context)])
        (check-names registry)))))
 
-(defn refresh-result
+(defn refresh-cached-result
+  "Refreshes the cached result for the check of the given name in the registry.
+
+   If a cached result is present and still valid, the refresh will have no
+   effect and the registry will be returned unchanged. If a result is present
+   but outdated or if no result is available, the refresh will evaluate the
+   check in order to obtain a result and return a registry with the updated
+   result cached.
+
+   Optionally takes a context map containing arbitrary context required
+   by the check in order to run and passed to the check function as the first
+   argument."
   [registry check-name]
   (with-cached-result registry
     (find-check registry check-name)

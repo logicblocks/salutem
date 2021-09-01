@@ -215,9 +215,10 @@
 (defn resolve-check
   "Resolves a result for the check of the given name in the registry.
 
-   If the check is a background check and there is a cached result available,
-   it is returned. If no cached result is available, the check is evaluated in
-   order to obtain a result to return.
+   If the check is a background check and there is a valid cached result
+   available, it is returned. If the cached result is expired or if no cached
+   result is available, the check is evaluated in order to obtain a result to
+   return.
 
    If the check is a realtime check, it is always evaluated in order to obtain
    a result to return and caching is not used.
