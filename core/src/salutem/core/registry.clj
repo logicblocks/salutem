@@ -50,7 +50,8 @@
   "Returns the set of checks that are currently outdated in the registry based
    on the type of the check and the cached results available.
 
-   See [[outdated?]] for details on which it means for a check to be outdated."
+   See [[salutem.results/outdated?]] for details on which it means for a check
+   to be outdated."
   [registry]
   (set
     (filter
