@@ -34,11 +34,11 @@
   (let [check-1 (checks/background-check :thing-1
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
-                  {:ttl (time/duration 30 :seconds)})
+                  {:time-to-re-evaluation (time/duration 30 :seconds)})
         check-2 (checks/background-check :thing-2
                   (fn [_ result-cb]
                     (result-cb (results/unhealthy)))
-                  {:ttl (time/duration 5 :minutes)})
+                  {:time-to-re-evaluation (time/duration 5 :minutes)})
 
         outdated-check-1-result
         (results/healthy
@@ -61,15 +61,15 @@
   (let [check-1 (checks/background-check :thing-1
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
-                  {:ttl (time/duration 30 :seconds)})
+                  {:time-to-re-evaluation (time/duration 30 :seconds)})
         check-2 (checks/background-check :thing-2
                   (fn [_ result-cb]
                     (result-cb (results/unhealthy)))
-                  {:ttl (time/duration 5 :minutes)})
+                  {:time-to-re-evaluation (time/duration 5 :minutes)})
         check-3 (checks/background-check :thing-3
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
-                  {:ttl (time/duration 1 :minutes)})
+                  {:time-to-re-evaluation (time/duration 1 :minutes)})
 
         outdated-check-1-result
         (results/healthy
@@ -97,15 +97,15 @@
   (let [check-1 (checks/background-check :thing-1
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
-                  {:ttl (time/duration 30 :seconds)})
+                  {:time-to-re-evaluation (time/duration 30 :seconds)})
         check-2 (checks/background-check :thing-2
                   (fn [_ result-cb]
                     (result-cb (results/unhealthy)))
-                  {:ttl (time/duration 5 :minutes)})
+                  {:time-to-re-evaluation (time/duration 5 :minutes)})
         check-3 (checks/background-check :thing-3
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
-                  {:ttl (time/duration 1 :minutes)})
+                  {:time-to-re-evaluation (time/duration 1 :minutes)})
 
         current-check-2-result
         (results/healthy

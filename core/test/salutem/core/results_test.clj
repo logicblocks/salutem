@@ -60,40 +60,43 @@
                  {:evaluated-at (t/- (t/now) (t/new-duration 60 :seconds))})]
     (is (true? (results/outdated? result check)))))
 
-(deftest is-outdated-if-evaluated-at-older-than-now-minus-ttl
+(deftest is-outdated-if-evaluated-at-older-than-now-minus-time-to-re-evaluation
   (let [check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:ttl (time/duration 30 :seconds)})
+                {:time-to-re-evaluation (time/duration 30 :seconds)})
         result (results/healthy
                  {:evaluated-at (t/- (t/now) (t/new-duration 60 :seconds))})]
     (is (true? (results/outdated? result check)))))
 
-(deftest is-not-outdated-if-evaluated-at-newer-than-now-minus-ttl
+(deftest
+  is-not-outdated-if-evaluated-at-newer-than-now-minus-time-to-re-evaluation
   (let [check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:ttl (time/duration 60 :seconds)})
+                {:time-to-re-evaluation (time/duration 60 :seconds)})
         result (results/healthy
                  {:evaluated-at (t/- (t/now) (t/new-duration 30 :seconds))})]
     (is (false? (results/outdated? result check)))))
 
-(deftest is-outdated-relative-to-provided-instant-when-older-than-ttl
+(deftest
+  is-outdated-relative-to-provided-instant-when-older-than-time-to-re-evaluation
   (let [relative-to-instant (t/- (t/now) (t/new-duration 2 :minutes))
         check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:ttl (time/duration 30 :seconds)})
+                {:time-to-re-evaluation (time/duration 30 :seconds)})
         result (results/healthy
                  {:evaluated-at (t/- (t/now) (t/new-duration 151 :seconds))})]
     (is (true? (results/outdated? result check relative-to-instant)))))
 
-(deftest is-not-outdated-relative-to-provided-instant-when-newer-than-ttl
+(deftest
+  is-not-outdated-relative-to-instant-when-newer-than-time-to-re-evaluation
   (let [relative-to-instant (t/- (t/now) (t/new-duration 2 :minutes))
         check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:ttl (time/duration 30 :seconds)})
+                {:time-to-re-evaluation (time/duration 30 :seconds)})
         result (results/healthy
                  {:evaluated-at (t/- (t/now) (t/new-duration 149 :seconds))})]
     (is (false? (results/outdated? result check relative-to-instant)))))
@@ -102,6 +105,6 @@
   (let [check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:ttl (time/duration 30 :seconds)})
+                {:time-to-re-evaluation (time/duration 30 :seconds)})
         result nil]
     (is (true? (results/outdated? result check)))))

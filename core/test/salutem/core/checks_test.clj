@@ -18,7 +18,7 @@
     (is (= (:check-fn check) check-fn))
 
     (is (= (:timeout check) (time/duration 10 :seconds)))
-    (is (= (:ttl check) (time/duration 10 :seconds)))))
+    (is (= (:time-to-re-evaluation check) (time/duration 10 :seconds)))))
 
 (deftest creates-background-check-with-provided-timeout
   (let [check-timeout (time/duration 5 :seconds)
@@ -28,13 +28,21 @@
                 {:timeout check-timeout})]
     (is (= (:timeout check) check-timeout))))
 
-(deftest creates-background-check-with-provided-ttl
-  (let [check-ttl (time/duration 5 :seconds)
+(deftest creates-background-check-with-provided-time-to-re-evaluation
+  (let [check-time-to-re-evaluation (time/duration 5 :seconds)
         check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:ttl check-ttl})]
-    (is (= (:ttl check) check-ttl))))
+                {:time-to-re-evaluation check-time-to-re-evaluation})]
+    (is (= (:time-to-re-evaluation check) check-time-to-re-evaluation))))
+
+(deftest creates-background-check-using-deprecated-ttl-as-time-to-re-evaluation
+  (let [check-time-to-re-evaluation (time/duration 5 :seconds)
+        check (checks/background-check :thing
+                (fn [_ result-cb]
+                  (result-cb (results/healthy)))
+                {:ttl check-time-to-re-evaluation})]
+    (is (= (:time-to-re-evaluation check) check-time-to-re-evaluation))))
 
 (deftest creates-realtime-check-with-provided-name-and-check-fn
   (let [check-name :thing

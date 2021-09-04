@@ -1,16 +1,16 @@
 # Getting Started
 
-`salutem` is a system for defining and maintaining a collection of 
-health checks with support for:
+`salutem` is a system for defining and maintaining a collection of health checks
+with support for:
 
 * both realtime and background checks,
 * a registry for storing, finding and resolving checks, and
-* an asynchronous maintenance system for ensuring that the results of checks
-  are kept up-to-date according to their definition, notifying on the results of 
+* an asynchronous maintenance system for ensuring that the results of checks are
+  kept up-to-date according to their definition, notifying on the results of
   those checks as needed.
 
-`salutem` is somewhat inspired by 
-[dropwizard-health](https://github.com/dropwizard/dropwizard-health) which may 
+`salutem` is somewhat inspired by
+[dropwizard-health](https://github.com/dropwizard/dropwizard-health) which may
 provide additional insight into its design.
 
 ## Contents
@@ -41,53 +41,52 @@ Add the following to your `project.clj` file:
 
 ## Definitions
 
-`salutem` introduces some domain terminology which we use throughout this 
-guide. The following domain model and definitions detail the domain.
+`salutem` introduces some domain terminology which we use throughout this guide.
+The following domain model and definitions detail the domain.
 
-<img 
-  src="images/domain-model.png"
+<img src="images/domain-model.png"
   alt="Domain Model"
   style="width: 100%; max-width: 680px;"/>
 
-* A **Check** is identified by its name and includes a function that performs 
-  the corresponding health check. Checks have a timeout such that if the check 
+* A **Check** is identified by its name and includes a function that performs
+  the corresponding health check. Checks have a timeout such that if the check
   function takes too long, it can be aborted.
-* Checks produce **Results** when they are _evaluated_, indicating the outcome 
-  of the check. Results have a status, with built-in support for _healthy_ and 
-  _unhealthy_ results. Results also keep track of the instant at which 
-  evaluation occurred. Results can also include arbitrary extra data for 
-  storing other required health check information.
-* A **Registry** stores a collection of Checks along with any previously 
+* Checks produce **Results** when they are _evaluated_, indicating the outcome
+  of the check. Results have a status, with built-in support for _healthy_ and
+  _unhealthy_ results. Results also keep track of the instant at which
+  evaluation occurred. Results can also include arbitrary extra data for storing
+  other required health check information.
+* A **Registry** stores a collection of Checks along with any previously
   generated Results that should be cached.
 * Checks within a Registry can be _resolved_ to a Result, which either retrieves
-  a cached result or evaluates the check if the result is out of date or 
+  a cached result or evaluates the check if the result is out of date or
   missing.
 * There are currently two types of checks supported, _RealtimeChecks_ and
   _BackgroundChecks_.
-* A **RealtimeCheck** is evaluated every time it is resolved, with no caching
-  of Results taking place.
+* A **RealtimeCheck** is evaluated every time it is resolved, with no caching of
+  Results taking place.
 * A **BackgroundCheck** is intended to be evaluated in the background
-  periodically such that a cached value is returned whenever the Check is
+  periodically such that a cached result is returned whenever the Check is
   resolved.
 
 ## Creating checks
 
-Checks are created with a name, a check function and some additional and 
+Checks are created with a name, a check function and some additional and
 optional configuration options depending on the type of check.
 
 ### Check functions
 
 A check function is an arity-2 function, taking an arbitrary context map and a
-callback function: 
+callback function:
 
 ```clojure
 (fn [context callback-fn]
   ...)
 ```
 
-All check functions must be non-blocking and must use the provided callback 
-function to communicate the result of their evaluation back to `salutem`. For 
-example, if you are health checking an HTTP endpoint using a non-blocking HTTP 
+All check functions must be non-blocking and must use the provided callback
+function to communicate the result of their evaluation back to `salutem`. For
+example, if you are health checking an HTTP endpoint using a non-blocking HTTP
 client such as `http-kit`, the check function might look like the following:
 
 ```clojure
@@ -96,7 +95,7 @@ client such as `http-kit`, the check function might look like the following:
 
 (fn [context callback-fn]
   (let [url (:url context)]
-    (http/get url 
+    (http/get url
       (fn [{:keys [status]}]
         (callback-fn
           (if (<= 200 status 399)
@@ -104,7 +103,7 @@ client such as `http-kit`, the check function might look like the following:
             (salutem/unhealthy)))))))
 ```
 
-If your health check logic is blocking, be sure to use a future within your 
+If your health check logic is blocking, be sure to use a future within your
 check function to convert the check function to a non-blocking operation. For
 example, if you have a database driver which only supports blocking operations,
 the check function might look like the following:
@@ -124,12 +123,12 @@ the check function might look like the following:
 ```
 
 Check functions should also implement some form of timeout on calls that could
-block for a long time. If using a 
-[maintenance pipeline](#starting-a-maintenance-pipeline), dependent on the type 
+block for a long time. If using a
+[maintenance pipeline](#starting-a-maintenance-pipeline), dependent on the type
 of the check, a check function could be called every interval which could result
-in resource exhaustion if the check function does not time out quickly enough. 
-It may also make sense to implement some form of circuit breaker within the 
-check function, potentially with exponential backoff. This is currently left up 
+in resource exhaustion if the check function does not time out quickly enough.
+It may also make sense to implement some form of circuit breaker within the
+check function, potentially with exponential backoff. This is currently left up
 to the implementer of the check function but may be incorporated into `salutem`
 in the future.
 
@@ -139,11 +138,11 @@ You'll notice in the check functions defined [above](#check-functions), we used
 [[salutem.core/healthy]] and [[salutem.core/unhealthy]] to produce healthy and
 unhealthy results respectively. Whilst it is convenient to have these functions,
 there's nothing inherently special about the results generated, except that they
-have `:healthy` and `:unhealthy` statuses. Nothing in `salutem` depends on 
-these statuses and in fact, any status can be used.
+have `:healthy` and `:unhealthy` statuses. Nothing in `salutem` depends on these
+statuses and in fact, any status can be used.
 
 If, for example, you need a status to represent that a dependency is in the
-process of starting up, you can create such a result using 
+process of starting up, you can create such a result using
 [[salutem.core/result]] directly:
 
 ```clojure
@@ -153,10 +152,10 @@ process of starting up, you can create such a result using
   {:progress "Connecting flanges"})
 ```
 
-All of [[salutem.core/healthy]], [[salutem.core/unhealthy]] and 
-[[salutem.core/result]] keep track of the instant at which
-evaluation occurred which by default is the instant at which the result was
-created. To set a specific instant for when evaluation occurred:
+All of [[salutem.core/healthy]], [[salutem.core/unhealthy]] and
+[[salutem.core/result]] keep track of the instant at which evaluation occurred
+which by default is the instant at which the result was created. To set a
+specific instant for when evaluation occurred:
 
 ```clojure
 (require '[salutem.core :as salutem])
@@ -171,7 +170,7 @@ created. To set a specific instant for when evaluation occurred:
 ```
 
 For healthy and unhealthy results, `salutem` provides two predicates,
-[[salutem.core/healthy?]] and [[salutem.core/unhealthy?]] for checking result 
+[[salutem.core/healthy?]] and [[salutem.core/unhealthy?]] for checking result
 status.
 
 ### Creating a realtime check
@@ -192,11 +191,11 @@ Given an HTTP endpoint check function factory such as the following:
             (salutem/unhealthy)))))))
 ```
 
-a realtime check of a hypothetical external user profile service could be 
+a realtime check of a hypothetical external user profile service could be
 created using the following:
 
 ```clojure
-(defn user-profile-service-check 
+(defn user-profile-service-check
   [configuration]
   (let [url (get-in configuration [:services :user-profile :ping-url])]
     (salutem/realtime-check
@@ -205,12 +204,12 @@ created using the following:
 ```
 
 [[salutem.core/realtime-check]] additionally supports a `:timeout` option which
-defines the amount of time to wait on a result before considering the health 
-check evaluation failed. By default, this is 10 seconds. To override the 
+defines the amount of time to wait on a result before considering the health
+check evaluation failed. By default, this is 10 seconds. To override the
 timeout:
 
 ```clojure
-(defn user-profile-service-check 
+(defn user-profile-service-check
   [configuration]
   (let [url (get-in configuration [:services :user-profile :ping-url])]
     (salutem/realtime-check
@@ -222,7 +221,7 @@ timeout:
 ### Creating a background check
 
 Creating a background check is much the same as creating a realtime check but
-with one extra option, `:ttl`, described below.
+with one extra option, `:time-to-re-evaluation`, described below.
 
 Again, given an HTTP endpoint check function factory such as the following:
 
@@ -240,11 +239,11 @@ Again, given an HTTP endpoint check function factory such as the following:
             (salutem/unhealthy)))))))
 ```
 
-a background check of a hypothetical external search service could be created 
+a background check of a hypothetical external search service could be created
 using the following:
 
 ```clojure
-(defn search-service-check 
+(defn search-service-check
   [configuration]
   (let [url (get-in configuration [:services :search :ping-url])]
     (salutem/background-check
@@ -252,13 +251,13 @@ using the following:
       (http-endpoint-check-fn url))))
 ```
 
-Just as for [[salutem.core/realtime-check]], [[salutem.core/background-check]] 
-supports a `:timeout` option which defines the amount of time to wait on a 
-result before considering the health check evaluation failed. By default, this 
+Just as for [[salutem.core/realtime-check]], [[salutem.core/background-check]]
+supports a `:timeout` option which defines the amount of time to wait on a
+result before considering the health check evaluation failed. By default, this
 is 10 seconds. To override the timeout:
 
 ```clojure
-(defn search-service-check 
+(defn search-service-check
   [configuration]
   (let [url (get-in configuration [:services :search :ping-url])]
     (salutem/background-check
@@ -267,20 +266,21 @@ is 10 seconds. To override the timeout:
       {:timeout (salutem/duration 30 :seconds)})))
 ```
 
-For a background check, any result produced by the check function has a 
-_time to live_ (TTL) which is the duration for which the result is considered
-_fresh_ and still relevant. [[salutem.core/background-check]] allows the TTL for
-a check to be set via the `:ttl` option. By default, this is 10 seconds. To
-override the TTL:
+Background checks also have a _time to re-evaluation_ which is the amount of
+time to wait before re-evaluating the check to obtain a fresh result. In between
+evaluations, whenever the check is resolved, a cached result is returned.
+[[salutem.core/background-check]] allows the time to re-evaluation for a check
+to be set via the `:time-to-re-evaluation` option. By default, this is 10
+seconds. To override the time to re-evaluation:
 
 ```clojure
-(defn search-service-check 
+(defn search-service-check
   [configuration]
   (let [url (get-in configuration [:services :search :ping-url])]
     (salutem/realtime-check
       :services/search
       (http-endpoint-check-fn url)
-      {:ttl (salutem/duration 5 :seconds)})))
+      {:time-to-re-evaluation (salutem/duration 5 :seconds)})))
 ```
 
 ## Managing checks using a registry
@@ -308,50 +308,56 @@ Checks can be added to the registry using [[salutem.core/with-check]]:
 (def registry
   (-> (salutem/empty-registry)
     (with-check (salutem/realtime-check :services/user-profile
-                  (http-endpoint-check-fn 
+                  (http-endpoint-check-fn
                     "https://user-profile.example.com/ping")
                   {:timeout (salutem/duration 5 :seconds)}))
     (with-check (salutem/background-check :services/search
                   (http-endpoint-check-fn
                     "https://search.example.com/ping")
-                  {:ttl (salutem/duration 30 :seconds)}))))
+                  {:time-to-re-evaluation (salutem/duration 30 :seconds)}))))
 ```
 
 ### Querying a registry
 
-
-
 ## The maintenance pipeline
 
-Whilst the registry alone is sufficient to ensure that background checks are only evaluated once every TTL, there are cases where you want results for checks to be as fresh as possible, for example when using those results to heart beat dependencies or when you are monitoring and alerting on the results of those checks.
+Whilst the registry alone is sufficient to ensure that background checks are
+only evaluated once every re-evaluation time, there are cases where you want
+results for checks to be as fresh as possible, for example when using those 
+results to heart beat dependencies or when you are monitoring and alerting on 
+the results of those checks.
 
-To assist in keeping results up-to-date, `salutem` provides a maintenance pipeline that runs asynchronously, constantly detecting checks in the registry that need to be re-evaluated, evaluating them, updating the registry with their results and storing in the registry store, and notifying interested parties.
+To assist in keeping results up-to-date, `salutem` provides a maintenance
+pipeline that runs asynchronously, constantly detecting checks in the registry
+that need to be re-evaluated, evaluating them, updating the registry with their
+results and storing in the registry store, and notifying interested parties.
 
-The maintenance pipeline, which uses `core.async` internally, consists of a number of independent processes and channels as depicted in the following diagram:
+The maintenance pipeline, which uses `core.async` internally, consists of a
+number of independent processes and channels as depicted in the following
+diagram:
 
-<img
-  src="images/maintenance-pipeline.png"
+<img src="images/maintenance-pipeline.png"
   alt="Maintenance Pipeline"
   style="width: 100%; max-width: 680px;"/>
 
 The responsibility of each process is as follows:
 
-- **Maintainer**: triggers a refresh attempt for the registry every interval, 
-  by default 200 milliseconds but configurable, by putting a trigger message on 
-  to the trigger channel.
-- **Refresher**: determines outdated checks based on cached results in the 
-  registry and check TTLs, requesting evaluation of each outdated check, by 
-  putting an evaluation message on the evaluation channel.
-- **Evaluator**: evaluates checks, timing out if evaluation takes too long, 
+- **Maintainer**: triggers a refresh attempt for the registry every interval, by
+  default 200 milliseconds but configurable, by putting a trigger message on to
+  the trigger channel.
+- **Refresher**: determines outdated checks based on cached results in the
+  registry and check re-evaluation times, requesting evaluation of each outdated 
+  check, by putting an evaluation message on the evaluation channel.
+- **Evaluator**: evaluates checks, timing out if evaluation takes too long,
   putting results on to the result channel.
-- **Updater**: updates the registry with the latest results and replaces the 
+- **Updater**: updates the registry with the latest results and replaces the
   registry in the registry store.
-- **Notifier**: calls a set of notification callback functions whenever a new 
+- **Notifier**: calls a set of notification callback functions whenever a new
   result is available.
 
-You probably won't need to interact with the individual components of the 
-maintenance pipeline. However, it is useful to know their responsibilities to 
-understand the configuration options. You can also build up alternative 
+You probably won't need to interact with the individual components of the
+maintenance pipeline. However, it is useful to know their responsibilities to
+understand the configuration options. You can also build up alternative
 pipelines from the components if you need.
 
 ### Starting the maintenance pipeline
@@ -371,8 +377,8 @@ To start a maintenance pipeline, do the following:
   (salutem/maintain registry-store))
 ```
 
-[[salutem.core/maintain]] both instantiates and starts the maintenance pipeline 
-so as soon as it is invoked, the registry store will start receiving updates 
+[[salutem.core/maintain]] both instantiates and starts the maintenance pipeline
+so as soon as it is invoked, the registry store will start receiving updates
 with check results.
 
 ### Stopping the maintenance pipeline

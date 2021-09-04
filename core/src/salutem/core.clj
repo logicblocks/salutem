@@ -18,7 +18,7 @@
 (defn duration
   "Constructs an object representing a duration of time.
 
-   This object is used to specify, for example, the time-to-live (TTL) and
+   This object is used to specify, for example, the time to re-evaluation and
    timeout on a check or the interval passed to a maintenance pipeline.
 
    Takes an amount and a unit:
@@ -78,13 +78,14 @@
   "Returns `true` if the result of the check is outdated, `false`
    otherwise.
 
-   A result is considered outdated if its time-to-live (TTL) has expired,
-   i.e., if its evaluation date time is before the current date time
-   minus the TTL. If `relative-to` is provided, the calculation is
-   performed relative to that date time rather than to the current date
-   time.
+   For a realtime check, a result is always considered outdated.
 
-   Note: the result of a realtime check is always considered outdated."
+   For a background check, a result is considered outdated if the
+   time to re-evaluation of the check has passed, i.e., if its evaluation date
+   time is before the current date time minus the check's time to re-evaluation.
+
+   If `relative-to` is provided, the calculation is performed relative to that
+   date time rather than to the current date time."
   ([result check] (results/outdated? result check))
   ([result check relative-to] (results/outdated? result check relative-to)))
 
@@ -93,27 +94,35 @@
   "Constructs a background check with the provided name and check function.
 
    A background check is one that is evaluated periodically with the result
-   cached until the next evaluation, which will occur once the time-to-live
-   (TTL) of the check has passed.
+   cached in a registry until the next evaluation, conducted by a maintenance
+   pipeline, which will occur once the time to re-evaluation of the check has
+   passed.
 
    Background checks are useful for external dependencies where it is
    important not to perform the check too frequently and where the health
-   status only needs to be accurate to within the TTL.
+   status only needs to be accurate on the order of the time to re-evaluation.
 
    Takes the following parameters:
 
      - `check-name`: a keyword representing the name of the check
-     - `check-fn`: an arity-2 function, with with the first argument being a
-       context map as provided during evaluation or at maintenance pipeline
-       construction and the second argument being a callback function which
-       should be called with the result fo the check to signal the check is
-       complete; note, check functions *must* be non-blocking.
+     - `check-fn`: an arity-2 function, with the first argument being a context
+       map as provided during evaluation or at maintenance pipeline construction
+       and the second argument being a callback function which should be called
+       with the result of the check to signal the check is complete; note, check
+       functions _must_ be non-blocking.
      - `opts`: an optional map of additional options for the check, containing:
-       - `:ttl`: a [[duration]] representing the TTL for a result of this check,
-         defaulting to 10 seconds
        - `:timeout`: a [[duration]] representing the amount of time to wait for
          the check to complete before considering it failed, defaulting to
-         10 seconds"
+         10 seconds
+       - `:time-to-re-evaluation`: a [[duration]] representing the time to wait
+         after a check is evaluated before attempting to re-evaluate it,
+         defaulting to 10 seconds.
+
+   Note that a result for a background check may live for longer than the
+   time to re-evaluation since evaluation takes time and the result will
+   continue to be returned from the registry whenever the check us resolved
+   until the evaluation has completed and the new result has been added to the
+   registry."
   ([check-name check-fn] (checks/background-check check-name check-fn))
   ([check-name check-fn opts]
    (checks/background-check check-name check-fn opts)))
@@ -125,16 +134,16 @@
    with no caching of results taking place.
 
    Realtime checks are useful when the accuracy of the check needs to be very
-   accurate or where the check itself is inexpensive.
+   high or where the check itself is inexpensive.
 
    Takes the following parameters:
 
      - `check-name`: a keyword representing the name of the check
-     - `check-fn`: an arity-2 function, with with the first argument being a
-       context map as provided during evaluation or at maintenance pipeline
-       construction and the second argument being a callback function which
-       should be called with the result fo the check to signal the check is
-       complete; note, check functions *must* be non-blocking.
+     - `check-fn`: an arity-2 function, with the first argument being a context
+       map as provided during evaluation or at maintenance pipeline construction
+       and the second argument being a callback function which should be called
+       with the result fo the check to signal the check is complete; note, check
+       functions _must_ be non-blocking.
      - `opts`: an optional map of additional options for the check, containing:
        - `:timeout`: a [[duration]] representing the amount of time to wait for
          the check to complete before considering it failed, defaulting to

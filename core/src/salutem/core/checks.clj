@@ -27,35 +27,48 @@
   "Constructs a background check with the provided name and check function.
 
    A background check is one that is evaluated periodically with the result
-   cached until the next evaluation, which will occur once the time-to-live
-   (TTL) of the check has passed.
+   cached in a registry until the next evaluation, conducted by a maintenance
+   pipeline, which will occur once the time to re-evaluation of the check has
+   passed.
 
    Background checks are useful for external dependencies where it is
    important not to perform the check too frequently and where the health
-   status only needs to be accurate to within the TTL.
+   status only needs to be accurate on the order of the time to re-evaluation.
 
    Takes the following parameters:
 
      - `check-name`: a keyword representing the name of the check
-     - `check-fn`: an arity-2 function, with with the first argument being a
-       context map as provided during evaluation or at maintenance pipeline
-       construction and the second argument being a callback function which
-       should be called with the result fo the check to signal the check is
-       complete; note, check functions _must_ be non-blocking.
+     - `check-fn`: an arity-2 function, with the first argument being a context
+       map as provided during evaluation or at maintenance pipeline construction
+       and the second argument being a callback function which should be called
+       with the result of the check to signal the check is complete; note, check
+       functions _must_ be non-blocking.
      - `opts`: an optional map of additional options for the check, containing:
-       - `:ttl`: a [[duration]] representing the TTL for a result of this check,
-         defaulting to 10 seconds
        - `:timeout`: a [[duration]] representing the amount of time to wait for
          the check to complete before considering it failed, defaulting to
-         10 seconds"
+         10 seconds
+       - `:time-to-re-evaluation`: a [[duration]] representing the time to wait
+         after a check is evaluated before attempting to re-evaluate it,
+         defaulting to 10 seconds.
+
+   Note that a result for a background check may live for longer than the
+   time to re-evaluation since evaluation takes time and the result will
+   continue to be returned from the registry whenever the check us resolved
+   until the evaluation has completed and the new result has been added to the
+   registry."
   ([check-name check-fn]
    (background-check check-name check-fn {}))
   ([check-name check-fn opts]
-   (check check-name check-fn
-     (merge
-       {:ttl (t/new-duration 10 :seconds)}
-       opts
-       {:type :background}))))
+   (let [time-to-re-evaluation
+         (or
+           (:time-to-re-evaluation opts)
+           (:ttl opts)
+           (t/new-duration 10 :seconds))]
+     (check check-name check-fn
+       (merge
+         {:time-to-re-evaluation time-to-re-evaluation}
+         (dissoc opts :time-to-re-evaluation :ttl)
+         {:type :background})))))
 
 (defn realtime-check
   "Constructs a realtime check with the provided name and check function.
@@ -64,20 +77,20 @@
    with no caching of results taking place.
 
    Realtime checks are useful when the accuracy of the check needs to be very
-   accurate or where the check itself is inexpensive.
+   high or where the check itself is inexpensive.
 
    Takes the following parameters:
 
      - `check-name`: a keyword representing the name of the check
-     - `check-fn`: an arity-2 function, with with the first argument being a
-       context map as provided during evaluation or at maintenance pipeline
-       construction and the second argument being a callback function which
-       should be called with the result fo the check to signal the check is
-       complete; note, check functions _must_ be non-blocking.
+     - `check-fn`: an arity-2 function, with the first argument being a context
+       map as provided during evaluation or at maintenance pipeline construction
+       and the second argument being a callback function which should be called
+       with the result fo the check to signal the check is complete; note, check
+       functions _must_ be non-blocking.
      - `opts`: an optional map of additional options for the check, containing:
-       - `:timeout`: a [[duration]] representing the amount of time to wait for
-         the check to complete before considering it failed, defaulting to
-         10 seconds"
+       - `:timeout`: a [[salutem.time/duration]] representing the amount of time
+         to wait for the check to complete before considering it failed,
+         defaulting to 10 seconds"
   ([check-name check-fn]
    (realtime-check check-name check-fn {}))
   ([check-name check-fn opts]

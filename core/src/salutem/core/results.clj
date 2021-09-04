@@ -53,13 +53,14 @@
   "Returns `true` if the result of the check is outdated, `false`
    otherwise.
 
-   A result is considered outdated if its time-to-live (TTL) has expired,
-   i.e., if its evaluation date time is before the current date time
-   minus the TTL. If `relative-to` is provided, the calculation is
-   performed relative to that date time rather than to the current date
-   time.
+   For a realtime check, a result is always considered outdated.
 
-   Note: the result of a realtime check is always considered outdated."
+   For a background check, a result is considered outdated if the
+   time to re-evaluation of the check has passed, i.e., if its evaluation date
+   time is before the current date time minus the check's time to re-evaluation.
+
+   If `relative-to` is provided, the calculation is performed relative to that
+   date time rather than to the current date time."
   ([result check]
    (outdated? result check (t/now)))
   ([result check relative-to]
@@ -67,4 +68,4 @@
      (= (:type check) :realtime)
      (nil? result)
      (t/< (:evaluated-at result)
-       (t/- relative-to (:ttl check))))))
+       (t/- relative-to (:time-to-re-evaluation check))))))

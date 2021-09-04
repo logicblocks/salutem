@@ -47,7 +47,7 @@ Add the following to your `project.clj` file:
       (health/with-check
         (health/background-check :external-service
           external-service-health-check-fn
-          {:ttl (health/duration 30 :seconds)})))))
+          {:time-to-re-evaluation (health/duration 30 :seconds)})))))
 
 (def maintainer
   (health/maintain registry-atom))
@@ -151,7 +151,7 @@ used to update other systems with results of the checks.
   {:callback-fns [callback-fn]})
 
 ; calls print-check-data with
-{:ttl #time/duration "PT10S",
+{:time-to-re-evaluation #time/duration "PT10S",
  :type :background,
  :name :check-name,
  :check-fn

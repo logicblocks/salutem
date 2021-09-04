@@ -7,7 +7,7 @@
 (defn duration
   "Constructs an object representing a duration of time.
 
-   This object is used to specify, for example, the time-to-live (TTL) and
+   This object is used to specify, for example, the time to re-evaluation and
    timeout on a check or the interval passed to a maintenance pipeline.
 
    Takes an amount and a unit:

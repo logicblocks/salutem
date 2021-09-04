@@ -209,7 +209,7 @@
         check
         (checks/background-check :thing
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:ttl (time/duration 30 :seconds)})
+          {:time-to-re-evaluation (time/duration 30 :seconds)})
         outdated-result
         (results/healthy
           {:evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
@@ -245,15 +245,15 @@
         check-1
         (checks/background-check :thing-1
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:ttl (time/duration 30 :seconds)})
+          {:time-to-re-evaluation (time/duration 30 :seconds)})
         check-2
         (checks/background-check :thing-2
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:ttl (time/duration 1 :minutes)})
+          {:time-to-re-evaluation (time/duration 1 :minutes)})
         check-3
         (checks/background-check :thing-2
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:ttl (time/duration 45 :seconds)})
+          {:time-to-re-evaluation (time/duration 45 :seconds)})
 
         check-1-outdated-result
         (results/healthy
@@ -299,15 +299,15 @@
         check-1
         (checks/background-check :thing-1
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:ttl (time/duration 30 :seconds)})
+          {:time-to-re-evaluation (time/duration 30 :seconds)})
         check-2
         (checks/background-check :thing-2
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:ttl (time/duration 1 :minutes)})
+          {:time-to-re-evaluation (time/duration 1 :minutes)})
         check-3
         (checks/background-check :thing-3
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:ttl (time/duration 45 :seconds)})
+          {:time-to-re-evaluation (time/duration 45 :seconds)})
 
         check-1-outdated-result
         (results/healthy
@@ -359,7 +359,7 @@
         check
         (checks/background-check :thing
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:ttl (time/duration 30 :seconds)})
+          {:time-to-re-evaluation (time/duration 30 :seconds)})
         outdated-result
         (results/healthy
           {:evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
@@ -1306,7 +1306,7 @@
                     (results/healthy
                       (merge (select-keys context [:some])
                         {:invocation-count @check-count}))))
-                {:ttl (time/duration 25 :millis)})
+                {:time-to-re-evaluation (time/duration 25 :millis)})
 
         registry (-> (registry/empty-registry)
                    (registry/with-check check))
