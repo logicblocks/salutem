@@ -112,51 +112,51 @@
   (= (:type check) :realtime))
 
 (defn attempt
-  ([check] (attempt check {}))
-  ([check context] (attempt check context (async/chan 1)))
-  ([check context result-channel]
-   (let [logger (or (:logger context) (cartus-null/logger))
-         dependencies {:logger logger}]
-     (attempt dependencies nil check context result-channel)))
-  ([dependencies trigger-id check context result-channel]
-   (let [logger (:logger dependencies)
-         check-name (:name check)]
-     (async/go
-       (let [{:keys [check-fn timeout]} check
-             callback-channel (async/chan)]
-         (log/info logger ::attempt.starting
-           {:trigger-id trigger-id
-            :check-name check-name})
-         (check-fn context
-           (fn [result]
-             (async/put! callback-channel result)))
-         (async/alt!
-           callback-channel
-           ([result]
-            (do
-              (log/info logger ::attempt.completed
-                {:trigger-id trigger-id
-                 :check-name check-name
-                 :result     result})
-              (async/>! result-channel
-                {:trigger-id trigger-id
-                 :check      check
-                 :result     result})))
-
-           (async/timeout (t/millis timeout))
+  [dependencies trigger-id check context result-channel]
+  (let [logger (or (:logger dependencies) (cartus-null/logger))
+        check-name (:name check)]
+    (async/go
+      (let [{:keys [check-fn timeout]} check
+            callback-channel (async/chan)]
+        (log/info logger ::attempt.starting
+          {:trigger-id trigger-id
+           :check-name check-name})
+        (check-fn context
+          (fn [result]
+            (async/put! callback-channel result)))
+        (async/alt!
+          callback-channel
+          ([result]
            (do
-             (log/info logger ::attempt.timed-out
+             (log/info logger ::attempt.completed
                {:trigger-id trigger-id
-                :check-name check-name})
+                :check-name check-name
+                :result     result})
              (async/>! result-channel
                {:trigger-id trigger-id
                 :check      check
-                :result     (results/unhealthy
-                              {:salutem/reason :timeout})}))
+                :result     result})))
 
-           :priority true)
-         (async/close! callback-channel))))
-   result-channel))
+          (async/timeout (t/millis timeout))
+          (do
+            (log/info logger ::attempt.timed-out
+              {:trigger-id trigger-id
+               :check-name check-name})
+            (async/>! result-channel
+              {:trigger-id trigger-id
+               :check      check
+               :result     (results/unhealthy
+                             {:salutem/reason :timeout})}))
+
+          :priority true)
+        (async/close! callback-channel))))
+  result-channel)
+
+(defn- evaluation-attempt [check context]
+  (let [logger (or (:logger context) (cartus-null/logger))
+        trigger-id (or (:trigger-id context) :ad-hoc)]
+    (attempt {:logger logger} trigger-id check context
+      (async/chan 1 (map :result)))))
 
 (defn evaluate
   "Evaluates the provided check, returning the result of the evaluation.
@@ -169,12 +169,6 @@
    and invokes the callback function with the result once available."
   ([check] (evaluate check {}))
   ([check context]
-   (async/<!!
-     (attempt check context
-       (async/chan 1 (map :result)))))
+   (async/<!! (evaluation-attempt check context)))
   ([check context callback-fn]
-   (async/go
-     (callback-fn
-       (async/<!
-         (attempt check context
-           (async/chan 1 (map :result))))))))
+   (async/go (callback-fn (async/<! (evaluation-attempt check context))))))

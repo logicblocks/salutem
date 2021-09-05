@@ -5,12 +5,15 @@
 
    [tick.alpha.api :as t]
 
+   [cartus.test :as cartus-test]
+
    [salutem.core.time :as time]
    [salutem.core.checks :as checks]
    [salutem.core.results :as results]
 
    [salutem.test.support.data :as data]
-   [salutem.test.support.async :as tsa]))
+   [salutem.test.support.async :as tsa]
+   [salutem.test.support.time :as tst]))
 
 (deftest background-check-creates-background-check
   (let [check-name :thing
@@ -98,27 +101,60 @@
     (is (= (:timeout check) check-timeout))))
 
 (deftest attempt-executes-check-function-putting-result-message-to-channel
-  (let [correlation-id (data/random-uuid)
-        evaluated-at (t/now)
+  (let [dependencies {}
+        trigger-id :test
+        context {}
+        result-channel (async/chan 1)
+
+        correlation-id (data/random-uuid)
 
         check (checks/realtime-check :thing
                 (fn [_ result-cb]
                   (result-cb
                     (results/healthy
-                      {:correlation-id correlation-id
-                       :evaluated-at   evaluated-at}))))
+                      {:correlation-id correlation-id}))))]
+    (checks/attempt dependencies trigger-id check context result-channel)
 
-        result-channel (checks/attempt check)
-        result (tsa/<!!-or-timeout result-channel)]
-    (is (= {:trigger-id nil
-            :check      check
-            :result     (results/healthy
-                          {:correlation-id correlation-id
-                           :evaluated-at   evaluated-at})}
-          result))))
+    (let [result-message (tsa/<!!-or-timeout result-channel)]
+      (is (= {:trigger-id trigger-id
+              :check      check
+              :result     (tst/without-evaluation-date-time
+                            (results/healthy
+                              {:correlation-id correlation-id}))}
+            (update-in result-message [:result]
+              tst/without-evaluation-date-time))))))
 
-(deftest attempt-uses-unhealthy-result-with-reason-when-check-fn-times-out
-  (let [check-timeout (time/duration 100 :millis)
+(deftest attempt-passes-provided-context-to-check-fn
+  (let [correlation-id (data/random-uuid)
+
+        dependencies {}
+        trigger-id :test
+        context {:correlation-id correlation-id}
+        result-channel (async/chan 1)
+
+        check (checks/realtime-check :thing
+                (fn [context result-cb]
+                  (result-cb
+                    (results/healthy
+                      {:correlation-id (:correlation-id context)}))))]
+    (checks/attempt dependencies trigger-id check context result-channel)
+
+    (let [result-message (tsa/<!!-or-timeout result-channel)]
+      (is (= {:trigger-id trigger-id
+              :check      check
+              :result     (tst/without-evaluation-date-time
+                            (results/healthy
+                              {:correlation-id correlation-id}))}
+            (update-in result-message [:result]
+              tst/without-evaluation-date-time))))))
+
+(deftest attempt-puts-unhealthy-result-with-reason-when-check-fn-times-out
+  (let [dependencies {}
+        trigger-id :test
+        context {}
+        result-channel (async/chan 1)
+
+        check-timeout (time/duration 100 :millis)
         check (checks/realtime-check :thing
                 (fn [_ result-cb]
                   (future
@@ -126,18 +162,94 @@
                     (result-cb
                       (results/healthy
                         {:correlation-id (data/random-uuid)}))))
-                {:timeout check-timeout})
+                {:timeout check-timeout})]
+    (checks/attempt dependencies trigger-id check context result-channel)
 
-        result-channel (checks/attempt check)
-        result (tsa/<!!-or-timeout result-channel
-                 (t/new-duration 300 :millis))]
-    (is (= {:trigger-id nil
-            :check      check
-            :result     (dissoc
-                          (results/unhealthy
-                            {:salutem/reason :timeout})
-                          :evaluated-at)}
-          (update-in result [:result] dissoc :evaluated-at)))))
+    (let [result-message (tsa/<!!-or-timeout result-channel
+                           (t/new-duration 300 :millis))]
+      (is (= {:trigger-id trigger-id
+              :check      check
+              :result     (tst/without-evaluation-date-time
+                            (results/unhealthy
+                              {:salutem/reason :timeout}))}
+            (update-in result-message [:result]
+              tst/without-evaluation-date-time))))))
+
+(deftest attempt-logs-event-when-starting-to-logger-supplied-in-dependencies
+  (let [logger (cartus-test/logger)
+
+        dependencies {:logger logger}
+        trigger-id :test
+        context {}
+        result-channel (async/chan 1)
+
+        check-name :thing
+        check (checks/realtime-check check-name
+                (fn [_ result-cb] (result-cb (results/healthy))))]
+
+    (checks/attempt dependencies trigger-id check context result-channel)
+
+    (tsa/<!!-or-timeout result-channel)
+
+    (is (logged? logger
+          {:context {:trigger-id trigger-id
+                     :check-name check-name}
+           :level   :info
+           :type    :salutem.core.checks/attempt.starting}))))
+
+(deftest attempt-logs-event-when-completed-to-logger-supplied-in-context
+  (let [logger (cartus-test/logger)
+
+        dependencies {:logger logger}
+        trigger-id :test
+        context {}
+        result-channel (async/chan 1)
+
+        correlation-id (data/random-uuid)
+        result (results/healthy {:correlation-id correlation-id})
+
+        check-name :thing
+        check (checks/realtime-check check-name
+                (fn [_ result-cb] (result-cb result)))]
+    (checks/attempt dependencies trigger-id check context result-channel)
+
+    (tsa/<!!-or-timeout result-channel)
+
+    (is (logged? logger
+          {:context {:trigger-id trigger-id
+                     :check-name check-name
+                     :result     result}
+           :level   :info
+           :type    :salutem.core.checks/attempt.completed}))))
+
+(deftest attempt-logs-event-when-timeout-occurs-to-logger-supplied-in-context
+  (let [logger (cartus-test/logger)
+
+        dependencies {:logger logger}
+        trigger-id :test
+        context {}
+        result-channel (async/chan 1)
+
+        check-name :thing
+        check-timeout (time/duration 100 :millis)
+        check (checks/realtime-check check-name
+                (fn [_ result-cb]
+                  (future
+                    (Thread/sleep 200)
+                    (result-cb
+                      (results/healthy
+                        {:correlation-id (data/random-uuid)}))))
+                {:timeout check-timeout})]
+    (checks/attempt dependencies trigger-id check context result-channel)
+
+    (tsa/<!!-or-timeout result-channel
+      (t/new-duration 300 :millis))
+
+    (is (logged? logger
+          {:context {:trigger-id trigger-id
+                     :check-name check-name}
+           :level   :info
+           :type    :salutem.core.checks/attempt.timed-out}))))
 
 (deftest evaluate-evaluates-check-returning-result
   (let [latency (t/new-duration 356 :millis)
