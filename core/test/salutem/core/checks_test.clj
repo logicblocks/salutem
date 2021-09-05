@@ -171,11 +171,33 @@
               :check      check
               :result     (tst/without-evaluation-date-time
                             (results/unhealthy
-                              {:salutem/reason :timeout}))}
+                              {:salutem/reason :timed-out}))}
             (update-in result-message [:result]
               tst/without-evaluation-date-time))))))
 
-(deftest attempt-logs-event-when-starting-to-logger-supplied-in-dependencies
+(deftest attempt-puts-unhealthy-result-with-reason-when-check-fn-throws
+  (let [dependencies {}
+        trigger-id :test
+        context {}
+        result-channel (async/chan 1)
+
+        exception (ex-info "Intentionally failed."
+                    {:check-name :thing})
+        check (checks/realtime-check :thing
+                (fn [_ _] (throw exception)))]
+    (checks/attempt dependencies trigger-id check context result-channel)
+
+    (let [result-message (tsa/<!!-or-timeout result-channel)]
+      (is (= {:trigger-id trigger-id
+              :check      check
+              :result     (tst/without-evaluation-date-time
+                            (results/unhealthy
+                              {:salutem/reason    :threw-exception
+                               :salutem/exception exception}))}
+            (update-in result-message [:result]
+              tst/without-evaluation-date-time))))))
+
+(deftest attempt-logs-event-when-starting-to-supplied-logger
   (let [logger (cartus-test/logger)
 
         dependencies {:logger logger}
@@ -197,7 +219,7 @@
            :level   :info
            :type    :salutem.core.checks/attempt.starting}))))
 
-(deftest attempt-logs-event-when-completed-to-logger-supplied-in-context
+(deftest attempt-logs-event-when-completed-to-supplied-logger
   (let [logger (cartus-test/logger)
 
         dependencies {:logger logger}
@@ -222,7 +244,7 @@
            :level   :info
            :type    :salutem.core.checks/attempt.completed}))))
 
-(deftest attempt-logs-event-when-timeout-occurs-to-logger-supplied-in-context
+(deftest attempt-logs-event-when-timeout-occurs-to-supplied-logger
   (let [logger (cartus-test/logger)
 
         dependencies {:logger logger}
@@ -250,6 +272,30 @@
                      :check-name check-name}
            :level   :info
            :type    :salutem.core.checks/attempt.timed-out}))))
+
+(deftest attempt-logs-event-when-exception-occurs-to-supplied-logger
+  (let [logger (cartus-test/logger)
+
+        dependencies {:logger logger}
+        trigger-id :test
+        context {}
+        result-channel (async/chan 1)
+
+        check-name :thing
+        exception (ex-info "Intentionally failed."
+                    {:check-name check-name})
+        check (checks/realtime-check check-name
+                (fn [_ _] (throw exception)))]
+    (checks/attempt dependencies trigger-id check context result-channel)
+
+    (tsa/<!!-or-timeout result-channel)
+
+    (is (logged? logger
+          {:context {:trigger-id trigger-id
+                     :check-name check-name
+                     :exception  exception}
+           :level   :info
+           :type    :salutem.core.checks/attempt.threw-exception}))))
 
 (deftest evaluate-evaluates-check-returning-result
   (let [latency (t/new-duration 356 :millis)

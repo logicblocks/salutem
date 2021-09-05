@@ -117,14 +117,32 @@
         check-name (:name check)]
     (async/go
       (let [{:keys [check-fn timeout]} check
-            callback-channel (async/chan)]
+            callback-channel (async/chan)
+            exception-channel (async/chan 1)]
         (log/info logger ::attempt.starting
           {:trigger-id trigger-id
            :check-name check-name})
-        (check-fn context
-          (fn [result]
-            (async/put! callback-channel result)))
+        (try
+          (check-fn context
+            (fn [result]
+              (async/put! callback-channel result)))
+          (catch Exception exception
+            (async/>! exception-channel exception)))
         (async/alt!
+          exception-channel
+          ([exception]
+           (do
+             (log/info logger ::attempt.threw-exception
+               {:trigger-id trigger-id
+                :check-name check-name
+                :exception  exception})
+             (async/>! result-channel
+               {:trigger-id trigger-id
+                :check      check
+                :result     (results/unhealthy
+                              {:salutem/reason    :threw-exception
+                               :salutem/exception exception})})))
+
           callback-channel
           ([result]
            (do
@@ -146,9 +164,10 @@
               {:trigger-id trigger-id
                :check      check
                :result     (results/unhealthy
-                             {:salutem/reason :timeout})}))
+                             {:salutem/reason :timed-out})}))
 
           :priority true)
+        (async/close! exception-channel)
         (async/close! callback-channel))))
   result-channel)
 
