@@ -1,4 +1,4 @@
-(defproject io.logicblocks/salutem "0.1.2-RC6"
+(defproject io.logicblocks/salutem "0.1.2-RC7"
   :description "Parent for all salutem modules."
 
   :plugins [[lein-modules "0.3.11"]
