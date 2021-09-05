@@ -12,18 +12,9 @@
    [salutem.core.checks :as checks]
    [salutem.core.results :as results]
    [salutem.core.maintenance :as maintenance]
-   [salutem.core.registry :as registry]))
+   [salutem.core.registry :as registry]
 
-(defn <!!-or-timeout
-  ([chan]
-   (<!!-or-timeout chan (t/new-duration 100 :millis)))
-  ([chan timeout]
-   (async/alt!!
-     chan ([v] v)
-     (async/timeout (t/millis timeout))
-     (throw (ex-info "Timed out waiting on channel."
-              {:channel chan
-               :timeout (t/millis timeout)})))))
+   [salutem.test.support.async :as tsa]))
 
 (deftest maintainer-logs-event-on-start
   (let [logger (cartus-test/logger)
@@ -67,7 +58,7 @@
     (async/<!! (async/timeout 150))
 
     (let [triggers
-          (<!!-or-timeout (async/into [] (async/take 3 trigger-channel)))]
+          (tsa/<!!-or-timeout (async/into [] (async/take 3 trigger-channel)))]
       (is (= [{:trigger-id 1
                :registry   registry
                :context    context}
@@ -129,7 +120,7 @@
 
     (async/close! shutdown-channel)
 
-    (is (nil? (<!!-or-timeout trigger-channel)))))
+    (is (nil? (tsa/<!!-or-timeout trigger-channel)))))
 
 (deftest maintainer-logs-event-on-shutdown-when-logger-in-context
   (let [test-logger (cartus-test/logger)
@@ -230,7 +221,7 @@
        :registry   registry
        :context    context})
 
-    (let [evaluation (<!!-or-timeout evaluation-channel)]
+    (let [evaluation (tsa/<!!-or-timeout evaluation-channel)]
       (is (= (:trigger-id evaluation) trigger-id))
       (is (= (:check evaluation) check))
       (is (= (:context evaluation) context)))
@@ -290,7 +281,7 @@
        :context    context})
     (async/close! trigger-channel)
 
-    (let [evaluations (<!!-or-timeout (async/into #{} evaluation-channel))]
+    (let [evaluations (tsa/<!!-or-timeout (async/into #{} evaluation-channel))]
       (is (= #{{:trigger-id trigger-id :check check-1 :context context}
                {:trigger-id trigger-id :check check-3 :context context}}
             evaluations)))))
@@ -348,7 +339,7 @@
        :context    context})
     (async/close! trigger-channel)
 
-    (<!!-or-timeout (async/into #{} evaluation-channel))
+    (tsa/<!!-or-timeout (async/into #{} evaluation-channel))
 
     (is (logged? test-logger #{:in-any-order}
           {:context {:trigger-id 1
@@ -383,7 +374,7 @@
         evaluation-channel (maintenance/refresher dependencies trigger-channel)]
     (async/put! trigger-channel {:registry registry :context context})
 
-    (let [evaluation (<!!-or-timeout evaluation-channel)]
+    (let [evaluation (tsa/<!!-or-timeout evaluation-channel)]
       (is (= (:check evaluation) check))
       (is (= (:context evaluation) context)))
 
@@ -400,7 +391,7 @@
 
     (async/close! trigger-channel)
 
-    (is (nil? (<!!-or-timeout evaluation-channel)))))
+    (is (nil? (tsa/<!!-or-timeout evaluation-channel)))))
 
 (deftest refresher-logs-event-on-shutdown
   (let [test-logger (cartus-test/logger)
@@ -489,7 +480,7 @@
        :check      check
        :context    context})
 
-    (<!!-or-timeout result-channel)
+    (tsa/<!!-or-timeout result-channel)
 
     (is (logged? test-logger
           {:context {:trigger-id trigger-id
@@ -523,7 +514,7 @@
        :check      check
        :context    context})
 
-    (let [{:keys [result] :as result-message} (<!!-or-timeout result-channel)]
+    (let [{:keys [result] :as result-message} (tsa/<!!-or-timeout result-channel)]
       (is (= (:trigger-id result-message) trigger-id))
       (is (results/unhealthy? result))
       (is (= (:latency result) (t/new-duration 1 :seconds)))
@@ -622,7 +613,7 @@
        :check      check
        :context    context})
 
-    (<!!-or-timeout result-channel)
+    (tsa/<!!-or-timeout result-channel)
 
     (is (logged? test-logger
           {:context {:trigger-id trigger-id
@@ -657,7 +648,7 @@
        :check      check})
 
     (let [{:keys [result] :as result-message}
-          (<!!-or-timeout result-channel
+          (tsa/<!!-or-timeout result-channel
             (t/new-duration 200 :millis))]
       (is (= (:trigger-id result-message) trigger-id))
       (is (results/unhealthy? result)))
@@ -687,7 +678,7 @@
       {:trigger-id trigger-id
        :check      check})
 
-    (<!!-or-timeout result-channel
+    (tsa/<!!-or-timeout result-channel
       (t/new-duration 200 :millis))
 
     (is (logged? test-logger
@@ -721,7 +712,7 @@
        :check      check
        :context    context})
 
-    (let [{:keys [result] :as result-message} (<!!-or-timeout result-channel)]
+    (let [{:keys [result] :as result-message} (tsa/<!!-or-timeout result-channel)]
       (is (= (:trigger-id result-message) trigger-id))
       (is (results/unhealthy? result))
       (is (= (:latency result) (t/new-duration 1 :seconds)))
@@ -740,7 +731,7 @@
 
     (async/close! evaluation-channel)
 
-    (is (nil? (<!!-or-timeout result-channel)))))
+    (is (nil? (tsa/<!!-or-timeout result-channel)))))
 
 (deftest evaluator-logs-event-on-shutdown
   (let [test-logger (cartus-test/logger)
@@ -1373,8 +1364,8 @@
 
     (async/<!! (async/timeout 75))
 
-    (is (= (<!!-or-timeout evaluation-channel) nil))
-    (is (= (<!!-or-timeout trigger-channel) nil))
-    (is (= (<!!-or-timeout result-channel) nil))
-    (is (= (<!!-or-timeout updater-result-channel) nil))
-    (is (= (<!!-or-timeout notifier-result-channel) nil))))
+    (is (= (tsa/<!!-or-timeout evaluation-channel) nil))
+    (is (= (tsa/<!!-or-timeout trigger-channel) nil))
+    (is (= (tsa/<!!-or-timeout result-channel) nil))
+    (is (= (tsa/<!!-or-timeout updater-result-channel) nil))
+    (is (= (tsa/<!!-or-timeout notifier-result-channel) nil))))

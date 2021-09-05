@@ -7,23 +7,42 @@
 
    [salutem.core.time :as time]
    [salutem.core.checks :as checks]
-   [salutem.core.results :as results]))
+   [salutem.core.results :as results]
 
-(deftest creates-background-check-with-provided-name-and-check-fn
+   [salutem.test.support.data :as data]
+   [salutem.test.support.async :as tsa]))
+
+(deftest background-check-creates-background-check
   (let [check-name :thing
         check-fn (fn [_ result-cb]
                    (result-cb (results/healthy)))
         check (checks/background-check check-name check-fn)]
     (is (checks/background? check))
-    (is (not (checks/realtime? check)))
+    (is (not (checks/realtime? check)))))
 
+(deftest background-check-uses-provided-name-and-check-fn
+  (let [check-name :thing
+        check-fn (fn [_ result-cb]
+                   (result-cb (results/healthy)))
+        check (checks/background-check check-name check-fn)]
     (is (= (:name check) check-name))
-    (is (= (:check-fn check) check-fn))
+    (is (= (:check-fn check) check-fn))))
 
-    (is (= (:timeout check) (time/duration 10 :seconds)))
+(deftest background-check-uses-10-second-timeout-by-default
+  (let [check-name :thing
+        check-fn (fn [_ result-cb]
+                   (result-cb (results/healthy)))
+        check (checks/background-check check-name check-fn)]
+    (is (= (:timeout check) (time/duration 10 :seconds)))))
+
+(deftest background-check-uses-10-second-time-to-re-evaluation-by-default
+  (let [check-name :thing
+        check-fn (fn [_ result-cb]
+                   (result-cb (results/healthy)))
+        check (checks/background-check check-name check-fn)]
     (is (= (:time-to-re-evaluation check) (time/duration 10 :seconds)))))
 
-(deftest creates-background-check-with-provided-timeout
+(deftest background-check-uses-supplied-timeout-when-provided
   (let [check-timeout (time/duration 5 :seconds)
         check (checks/background-check :thing
                 (fn [_ result-cb]
@@ -31,7 +50,7 @@
                 {:timeout check-timeout})]
     (is (= (:timeout check) check-timeout))))
 
-(deftest creates-background-check-with-provided-time-to-re-evaluation
+(deftest background-check-uses-supplied-time-to-re-evaluation-when-provided
   (let [check-time-to-re-evaluation (time/duration 5 :seconds)
         check (checks/background-check :thing
                 (fn [_ result-cb]
@@ -39,7 +58,7 @@
                 {:time-to-re-evaluation check-time-to-re-evaluation})]
     (is (= (:time-to-re-evaluation check) check-time-to-re-evaluation))))
 
-(deftest creates-background-check-using-deprecated-ttl-as-time-to-re-evaluation
+(deftest background-check-uses-deprecated-ttl-as-time-to-re-evaluation
   (let [check-time-to-re-evaluation (time/duration 5 :seconds)
         check (checks/background-check :thing
                 (fn [_ result-cb]
@@ -47,20 +66,30 @@
                 {:ttl check-time-to-re-evaluation})]
     (is (= (:time-to-re-evaluation check) check-time-to-re-evaluation))))
 
-(deftest creates-realtime-check-with-provided-name-and-check-fn
+(deftest realtime-check-creates-realtime-check
   (let [check-name :thing
         check-fn (fn [_ result-cb]
                    (result-cb (results/healthy)))
         check (checks/realtime-check check-name check-fn)]
     (is (checks/realtime? check))
-    (is (not (checks/background? check)))
+    (is (not (checks/background? check)))))
 
+(deftest realtime-check-uses-provided-name-and-check-fn
+  (let [check-name :thing
+        check-fn (fn [_ result-cb]
+                   (result-cb (results/healthy)))
+        check (checks/realtime-check check-name check-fn)]
     (is (= (:name check) check-name))
-    (is (= (:check-fn check) check-fn))
+    (is (= (:check-fn check) check-fn))))
 
+(deftest realtime-check-uses-10-second-timeout-by-default
+  (let [check-name :thing
+        check-fn (fn [_ result-cb]
+                   (result-cb (results/healthy)))
+        check (checks/realtime-check check-name check-fn)]
     (is (= (:timeout check) (time/duration 10 :seconds)))))
 
-(deftest creates-realtime-check-with-provided-timeout
+(deftest realtime-check-uses-supplied-timeout-when-provided
   (let [check-timeout (time/duration 5 :seconds)
         check (checks/realtime-check :thing
                 (fn [_ result-cb]
@@ -68,7 +97,49 @@
                 {:timeout check-timeout})]
     (is (= (:timeout check) check-timeout))))
 
-(deftest evaluates-check-returning-result
+(deftest attempt-executes-check-function-putting-result-message-to-channel
+  (let [correlation-id (data/random-uuid)
+        evaluated-at (t/now)
+
+        check (checks/realtime-check :thing
+                (fn [_ result-cb]
+                  (result-cb
+                    (results/healthy
+                      {:correlation-id correlation-id
+                       :evaluated-at   evaluated-at}))))
+
+        result-channel (checks/attempt check)
+        result (tsa/<!!-or-timeout result-channel)]
+    (is (= {:trigger-id nil
+            :check      check
+            :result     (results/healthy
+                          {:correlation-id correlation-id
+                           :evaluated-at   evaluated-at})}
+          result))))
+
+(deftest attempt-uses-unhealthy-result-with-reason-when-check-fn-times-out
+  (let [check-timeout (time/duration 100 :millis)
+        check (checks/realtime-check :thing
+                (fn [_ result-cb]
+                  (future
+                    (Thread/sleep 200)
+                    (result-cb
+                      (results/healthy
+                        {:correlation-id (data/random-uuid)}))))
+                {:timeout check-timeout})
+
+        result-channel (checks/attempt check)
+        result (tsa/<!!-or-timeout result-channel
+                 (t/new-duration 300 :millis))]
+    (is (= {:trigger-id nil
+            :check      check
+            :result     (dissoc
+                          (results/unhealthy
+                            {:salutem/reason :timeout})
+                          :evaluated-at)}
+          (update-in result [:result] dissoc :evaluated-at)))))
+
+(deftest evaluate-evaluates-check-returning-result
   (let [latency (t/new-duration 356 :millis)
         evaluated-at (t/now)
         check (checks/realtime-check :thing
@@ -82,7 +153,7 @@
             {:latency      latency
              :evaluated-at evaluated-at})))))
 
-(deftest passes-context-map-to-check-function-during-evaluation
+(deftest evaluate-passes-context-map-to-check-function-during-evaluation
   (let [latency (t/new-duration 356 :millis)
         evaluated-at (t/now)
         check (checks/realtime-check :thing
@@ -98,7 +169,7 @@
              :latency      latency
              :evaluated-at evaluated-at})))))
 
-(deftest evaluates-asynchronously-when-passed-callback
+(deftest evaluate-evaluates-asynchronously-when-passed-callback
   (let [context {:caller :thing-consumer}
 
         latency (t/new-duration 356 :millis)

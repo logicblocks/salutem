@@ -151,7 +151,8 @@
              (async/>! result-channel
                {:trigger-id trigger-id
                 :check      check
-                :result     (results/unhealthy)}))
+                :result     (results/unhealthy
+                              {:salutem/reason :timeout})}))
 
            :priority true)
          (async/close! callback-channel))))
