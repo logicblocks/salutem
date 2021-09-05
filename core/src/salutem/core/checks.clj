@@ -44,12 +44,12 @@
        with the result of the check to signal the check is complete; note, check
        functions _must_ be non-blocking.
      - `opts`: an optional map of additional options for the check, containing:
-       - `:timeout`: a [[duration]] representing the amount of time to wait for
-         the check to complete before considering it failed, defaulting to
-         10 seconds
-       - `:time-to-re-evaluation`: a [[duration]] representing the time to wait
-         after a check is evaluated before attempting to re-evaluate it,
-         defaulting to 10 seconds.
+       - `:timeout`: a [[salutem.time/duration]] representing the amount of time
+         to wait for the check to complete before considering it failed,
+         defaulting to 10 seconds
+       - `:time-to-re-evaluation`: a [[salutem.time/duration]] representing the
+         time to wait after a check is evaluated before attempting to
+         re-evaluate it, defaulting to 10 seconds.
 
    Note that a result for a background check may live for longer than the
    time to re-evaluation since evaluation takes time and the result will
@@ -112,10 +112,12 @@
   (= (:type check) :realtime))
 
 (defn attempt
-  ([check context]
+  ([check] (attempt check {}))
+  ([check context] (attempt check context (async/chan 1)))
+  ([check context result-channel]
    (let [logger (or (:logger context) (cartus-null/logger))
          dependencies {:logger logger}]
-     (attempt dependencies nil check context (async/chan 1))))
+     (attempt dependencies nil check context result-channel)))
   ([dependencies trigger-id check context result-channel]
    (let [logger (:logger dependencies)
          check-name (:name check)]
@@ -156,12 +158,22 @@
    result-channel))
 
 (defn evaluate
-  "Evaluates the provided check synchronously, returning the result of the
-   evaluation.
+  "Evaluates the provided check, returning the result of the evaluation.
 
-   Optionally takes a context map containing arbitrary context required
-   by the check in order to run and passed to the check function as the first
-   argument."
+   Optionally takes a context map containing arbitrary context required by the
+   check in order to run and passed to the check function as the first argument.
+
+   By default, the check is evaluated synchronously. If a callback function is
+   provided, the function starts evaluation asynchronously, returns immediately
+   and invokes the callback function with the result once available."
   ([check] (evaluate check {}))
   ([check context]
-   (:result (async/<!! (attempt check context)))))
+   (async/<!!
+     (attempt check context
+       (async/chan 1 (map :result)))))
+  ([check context callback-fn]
+   (async/go
+     (callback-fn
+       (async/<!
+         (attempt check context
+           (async/chan 1 (map :result))))))))

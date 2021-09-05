@@ -22,9 +22,14 @@ provide additional insight into its design.
     - [Producing results](#producing-results)
     - [Creating a realtime check](#creating-a-realtime-check)
     - [Creating a background check](#creating-a-background-check)
-- [Managing checks using a registry](#managing-check-using-a-registry)
+- [Evaluating checks](#evaluating-checks)
+    - [Synchronously evaluating a check](#synchronously-evaluating-a-check)
+    - [Asynchronously evaluating a check](#asynchronously-evaluating-a-check)
+    - [Checking if results are out-of-date](#working-with-results)
+- [Managing checks using a registry](#managing-checks-using-a-registry)
     - [Creating and populating a registry](#creating-and-populating-a-registry)
     - [Querying a registry](#querying-a-registry)
+    - [Resolving checks in a registry](#resolving-checks-in-a-registry)
 - [The maintenance pipeline](#the-maintenance-pipeline)
     - [Starting the maintenance pipeline](#starting-the-maintenance-pipeline)
     - [Stopping the maintenance pipeline](#stopping-the-maintenance-pipeline)
@@ -45,8 +50,8 @@ Add the following to your `project.clj` file:
 The following domain model and definitions detail the domain.
 
 <img src="images/domain-model.png"
-  alt="Domain Model"
-  style="width: 100%; max-width: 680px;"/>
+alt="Domain Model"
+style="width: 100%; max-width: 680px;"/>
 
 * A **Check** is identified by its name and includes a function that performs
   the corresponding health check. Checks have a timeout such that if the check
@@ -58,13 +63,15 @@ The following domain model and definitions detail the domain.
   other required health check information.
 * A **Registry** stores a collection of Checks along with any previously
   generated Results that should be cached.
+* A **RegistryStore** is an Atom containing a Registry, used in some places
+  where rather than a Registry, a shared reference to a Registry is required.
 * Checks within a Registry can be _resolved_ to a Result, which either retrieves
-  a cached result or evaluates the check if the result is out of date or
-  missing.
+  a cached result or evaluates the check if it is realtime or if there is no
+  available result.
 * There are currently two types of checks supported, _RealtimeChecks_ and
   _BackgroundChecks_.
-* A **RealtimeCheck** is evaluated every time it is resolved, with no caching of
-  Results taking place.
+* A **RealtimeCheck** is evaluated every time it is resolved such that cached
+  Results will never be returned.
 * A **BackgroundCheck** is intended to be evaluated in the background
   periodically such that a cached result is returned whenever the Check is
   resolved.
@@ -168,10 +175,6 @@ specific instant for when evaluation occurred:
 (salutem/result :starting-up
   {:evaluated-at (time/- (time/now) (time/new-duration 20 :minutes))})
 ```
-
-For healthy and unhealthy results, `salutem` provides two predicates,
-[[salutem.core/healthy?]] and [[salutem.core/unhealthy?]] for checking result
-status.
 
 ### Creating a realtime check
 
@@ -283,6 +286,102 @@ seconds. To override the time to re-evaluation:
       {:time-to-re-evaluation (salutem/duration 5 :seconds)})))
 ```
 
+## Evaluating checks
+
+Checks are evaluated using [[salutem.core/evaluate]], with support for both
+synchronous and asynchronous evaluation.
+
+### Synchronously evaluating a check
+
+To evaluate a check synchronously:
+
+```clojure
+(require '[salutem.core :as salutem])
+
+(def user-profile-service-check
+  (salutem/realtime-check :service/user-profile
+    (fn [_ callback-fn]
+      (callback-fn
+        (salutem/healthy {:latency "73ms"})))
+    {:timeout (salutem/duration 5 :seconds)}))
+
+(salutem/evaluate user-profile-service-check)
+; => (salutem/healthy {:latency "73ms"})
+```
+
+If the check requires something from a context map:
+
+```clojure
+(require '[salutem.core :as salutem])
+
+(def user-profile-service-check
+  (salutem/realtime-check :service/user-profile
+    (fn [context callback-fn]
+      (callback-fn
+        (salutem/healthy 
+          {:latency "73ms"
+           :caller (:caller context)})))
+    {:timeout (salutem/duration 5 :seconds)}))
+
+(salutem/evaluate user-profile-service-check
+  {:caller :order-service})
+; => (salutem/healthy 
+;      {:latency "73ms"
+;       :caller :order-service})
+```
+
+### Asynchronously evaluating a check
+
+To evaluate a check asynchronously, pass a callback function:
+
+```clojure
+(require '[clojure.pprint :as pp])
+(require '[salutem.core :as salutem])
+
+(def user-profile-service-check
+  (salutem/realtime-check :service/user-profile
+    (fn [context callback-fn]
+      (future
+        (Thread/sleep 300)
+        (callback-fn
+          (salutem/healthy 
+            {:latency "373ms"
+             :caller (:caller context)}))))
+    {:timeout (salutem/duration 5 :seconds)}))
+
+(salutem/evaluate user-profile-service-check
+  {:caller :order-service}
+  (fn [result]
+    (pp/pprint "Received result.")
+    (pp/pprint result)))
+
+(pp/pprint "Waiting on result...")
+; Waiting on result...
+
+; some time later
+
+; Received result. 
+; {:latency "373ms"
+;  :caller :order-service
+;  :status :healthy
+;  :evaluated-at #time/instant "2021-09-05T01:05:17.070Z"})
+```
+
+### Working with results
+
+For healthy and unhealthy results, `salutem` provides two predicates,
+[[salutem.core/healthy?]] and [[salutem.core/unhealthy?]] for checking result
+status.
+
+Additionally, `salutem` provides the [[salutem.core/outdated?]] function to
+determine if a result of a check is no longer up to date. A result is outdated
+if:
+
+* it is `nil`;
+* it is for a realtime check; or
+* it is for a background check and was produced more than the time to
+  re-evaluation of the check in the past.
+
 ## Managing checks using a registry
 
 A registry manages a set of checks, allowing storage, lookup and resolution of
@@ -307,24 +406,221 @@ Checks can be added to the registry using [[salutem.core/with-check]]:
 
 (def registry
   (-> (salutem/empty-registry)
-    (with-check (salutem/realtime-check :services/user-profile
-                  (http-endpoint-check-fn
-                    "https://user-profile.example.com/ping")
-                  {:timeout (salutem/duration 5 :seconds)}))
-    (with-check (salutem/background-check :services/search
-                  (http-endpoint-check-fn
-                    "https://search.example.com/ping")
-                  {:time-to-re-evaluation (salutem/duration 30 :seconds)}))))
+    (salutem/with-check
+      (salutem/realtime-check :services/user-profile
+        (http-endpoint-check-fn
+          "https://user-profile.example.com/ping")
+        {:timeout (salutem/duration 5 :seconds)}))
+    (salutem/with-check
+      (salutem/background-check :services/search
+        (http-endpoint-check-fn
+          "https://search.example.com/ping")
+        {:time-to-re-evaluation (salutem/duration 30 :seconds)}))))
+```
+
+Whilst mostly for internal use, it's also possible to cache results in the
+registry using [[salutem.core/with-cached-result]]. The result cache stores a 
+single result per check, overwriting an existing result if present.
+
+```clojure
+(require '[salutem.core :as salutem])
+
+(def search-service-check-name :services/user-profile)
+
+(def search-service-check
+  (salutem/background-check search-service-check-name
+    (http-endpoint-check-fn
+      "https://user-profile.example.com/ping")
+    {:timeout (salutem/duration 5 :seconds)}))
+
+(def registry
+  (-> (salutem/empty-registry)
+    (salutem/with-check search-service-check)
+    (salutem/with-cached-result search-service-check-name (salutem/healthy))))
 ```
 
 ### Querying a registry
 
+Let's say we have the following registry:
+
+```clojure
+(require '[salutem.core :as salutem])
+(require '[tick.alpha.api :as time])
+
+(def user-profile-service-check-name :services/user-profile)
+(def search-service-check-name :services/search)
+
+(def user-profile-service-check
+  (salutem/realtime-check user-profile-service-check-name
+    (http-endpoint-check-fn
+      "https://user-profile.example.com/ping")
+    {:timeout (salutem/duration 5 :seconds)}))
+
+(def search-service-check
+  (salutem/background-check search-service-check-name
+    (http-endpoint-check-fn
+      "https://search.example.com/ping")
+    {:time-to-re-evaluation (salutem/duration 30 :seconds)}))
+
+(def search-service-result
+  (salutem/healthy
+    {:latency      "82ms"
+     :evaluated-at (t/- (t/now) (t/new-duration 15 :seconds))}))
+
+(def registry
+  (-> (salutem/empty-registry)
+    (with-check user-profile-service-check)
+    (with-check search-service-check)
+    (with-cached-result search-service-check-name search-service-result)))
+```
+
+To find a check in the registry:
+
+```clojure
+(= search-service-check
+  (salutem/find-check registry search-service-check-name))
+; => true
+```
+
+To find a cached result in the registry:
+
+```clojure
+(= search-service-result
+  (salutem/find-cached-result registry search-service-check-name))
+; => true
+```
+
+For a set of all the check names available in the registry:
+
+```clojure
+(= #{search-service-check-name user-profile-service-check-name}
+  (salutem/check-names registry))
+; => true
+```
+
+To get all the checks from the registry:
+
+```clojure
+(= #{search-service-check user-profile-service-check}
+  (salutem/all-checks registry))
+; => true
+```
+
+To get the checks in the registry that have outdated results:
+
+```clojure
+(= #{user-profile-service-check}
+  (salutem/outdated-checks registry))
+```
+
+### Resolving checks in a registry
+
+Resolving a check in a registry is the act of obtaining a result for that check.
+However, it doesn't necessarily mean that the check will be evaluated. Instead,
+depending on the type of the check, it may be possible to resolve to a cached
+result instead of triggering evaluation.
+
+First, let's define a registry:
+
+```clojure
+(require '[salutem.core :as salutem])
+(require '[tick.alpha.api :as time])
+
+(def user-profile-service-check-name :services/user-profile)
+(def search-service-check-name :services/search)
+(def database-check-name :components/database)
+
+(def user-profile-service-check
+  (salutem/realtime-check user-profile-service-check-name
+    ; produces (salutem/healthy) when evaluated
+    (http-endpoint-check-fn
+      "https://user-profile.example.com/ping")
+    {:timeout (salutem/duration 5 :seconds)}))
+
+(def search-service-check
+  (salutem/background-check search-service-check-name
+    ; produces (salutem/unhealthy) when evaluated
+    (http-endpoint-check-fn
+      "https://search.example.com/ping")
+    {:time-to-re-evaluation (salutem/duration 5 :seconds)}))
+
+(def database-check
+  (salutem/background-check database-check-name
+    ; produces (salutem/unhealthy) when evaluated
+    (database-check-fn
+      {:dbtype   "postgresql"
+       :dbname   "service_db"
+       :host     "localhost"
+       :user     "user"
+       :password "secret"})
+    {:time-to-re-evaluation (salutem/duration 30 :seconds)}))
+
+(def search-service-result
+  (salutem/healthy
+    {:latency      "82ms"
+     :evaluated-at (t/- (t/now) (t/new-duration 15 :seconds))}))
+
+(def registry
+  (-> (salutem/empty-registry)
+    (with-check user-profile-service-check)
+    (with-check search-service-check)
+    (with-check database-check)
+    (with-cached-result search-service-check-name search-service-result)))
+```
+
+Here we have three checks, one realtime check and two background checks. For one
+of the background checks, we have an outdated cached result.
+
+To resolve each of these checks, use [[salutem.core/resolve-check]]:
+
+```clojure
+(salutem/resolve-check registry user-profile-service-check-name)
+;; triggers evaluation since the check is realtime
+; => (salutem/healthy)
+
+(salutem/resolve-check registry search-service-check-name)
+;; returns cached result, despite being outdated, since registry doesn't 
+;; re-evaluate background checks
+; => (salutem/healthy 
+;      {:latency "82ms"
+;       :evaluated-at (t/- (t/now) (t/new-duration 15 :seconds))}) 
+
+(salutem/resolve-check registry database-check-name)
+;; triggers evaluation since no cached result available
+; => (salutem/unhealthy)
+```
+
+It's important to take note that the background check with an outdated result is
+not re-evaluated as part of resolution. In order to keep the cached result
+up-to-date, use a [maintenance pipeline](#the-maintenance-pipeline).
+
+To resolve all of the checks in the registry:
+
+```clojure
+(salutem/resolve-checks registry)
+; => {user-profile-service-check-name 
+;     (salutem/healthy)
+;
+;     search-service-check-name 
+;     (salutem/healthy 
+;       {:latency "82ms"
+;        :evaluated-at (t/- (t/now) (t/new-duration 15 :seconds))
+;     
+;     database-check-name
+;     (salutem/unhealthy)}
+```
+
+Since both [[salutem.core/resolve-check]] and [[salutem.core/resolve-checks]]
+can result in evaluation of checks, they each have an arity that takes a 
+`context` map to be passed to the check functions if needed.
+
 ## The maintenance pipeline
 
-Whilst the registry alone is sufficient to ensure that background checks are
-only evaluated once every re-evaluation time, there are cases where you want
-results for checks to be as fresh as possible, for example when using those 
-results to heart beat dependencies or when you are monitoring and alerting on 
+Whilst the registry alone is sufficient to manage realtime checks, whenever you
+have background checks, you need a mechanism to ensure that cached results in
+the registry are kept up-to-date. There are also cases where you may want
+realtime checks to be evaluated periodically, for example when using those
+checks to heart beat dependencies or when you are monitoring and alerting on
 the results of those checks.
 
 To assist in keeping results up-to-date, `salutem` provides a maintenance
@@ -346,7 +642,7 @@ The responsibility of each process is as follows:
   default 200 milliseconds but configurable, by putting a trigger message on to
   the trigger channel.
 - **Refresher**: determines outdated checks based on cached results in the
-  registry and check re-evaluation times, requesting evaluation of each outdated 
+  registry and check re-evaluation times, requesting evaluation of each outdated
   check, by putting an evaluation message on the evaluation channel.
 - **Evaluator**: evaluates checks, timing out if evaluation takes too long,
   putting results on to the result channel.

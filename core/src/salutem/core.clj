@@ -165,14 +165,17 @@
   (checks/realtime? check))
 
 (defn evaluate
-  "Evaluates the provided check synchronously, returning the result of the
-   evaluation.
+  "Evaluates the provided check, returning the result of the evaluation.
 
-   Optionally takes a context map containing arbitrary context required
-   by the check in order to run and passed to the check function as the first
-   argument."
+   Optionally takes a context map containing arbitrary context required by the
+   check in order to run and passed to the check function as the first argument.
+
+   By default, the check is evaluated synchronously. If a callback function is
+   provided, the function starts evaluation asynchronously, returns immediately
+   and invokes the callback function with the result once available."
   ([check] (checks/evaluate check))
-  ([check context] (checks/evaluate check context)))
+  ([check context] (checks/evaluate check context))
+  ([check context callback-fn] (checks/evaluate check context callback-fn)))
 
 ; registry
 (defn empty-registry
@@ -187,9 +190,10 @@
   (registry/with-check registry check))
 
 (defn with-cached-result
-  "Adds the result for the check to the registry, returning a new registry."
-  [registry check result]
-  (registry/with-cached-result registry check result))
+  "Adds the result for the check with the given name to the registry,
+   returning a new registry."
+  [registry check-name result]
+  (registry/with-cached-result registry check-name result))
 
 (defn find-check
   "Finds the check with the given name in the registry. Returns `nil` if no

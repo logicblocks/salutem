@@ -31,11 +31,14 @@
     (is (= (registry/check-names registry) #{:thing-1 :thing-2}))))
 
 (deftest returns-single-outdated-check
-  (let [check-1 (checks/background-check :thing-1
+  (let [check-1-name :thing-1
+        check-2-name :thing-2
+
+        check-1 (checks/background-check check-1-name
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
                   {:time-to-re-evaluation (time/duration 30 :seconds)})
-        check-2 (checks/background-check :thing-2
+        check-2 (checks/background-check check-2-name
                   (fn [_ result-cb]
                     (result-cb (results/unhealthy)))
                   {:time-to-re-evaluation (time/duration 5 :minutes)})
@@ -51,22 +54,26 @@
         (-> (registry/empty-registry)
           (registry/with-check check-1)
           (registry/with-check check-2)
-          (registry/with-cached-result check-1 outdated-check-1-result)
-          (registry/with-cached-result check-2 current-check-2-result))
+          (registry/with-cached-result check-1-name outdated-check-1-result)
+          (registry/with-cached-result check-2-name current-check-2-result))
 
         outdated-checks (registry/outdated-checks registry)]
     (is (= #{check-1} outdated-checks))))
 
 (deftest returns-many-outdated-checks
-  (let [check-1 (checks/background-check :thing-1
+  (let [check-1-name :thing-1
+        check-2-name :thing-2
+        check-3-name :thing-3
+
+        check-1 (checks/background-check check-1-name
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
                   {:time-to-re-evaluation (time/duration 30 :seconds)})
-        check-2 (checks/background-check :thing-2
+        check-2 (checks/background-check check-2-name
                   (fn [_ result-cb]
                     (result-cb (results/unhealthy)))
                   {:time-to-re-evaluation (time/duration 5 :minutes)})
-        check-3 (checks/background-check :thing-3
+        check-3 (checks/background-check check-3-name
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
                   {:time-to-re-evaluation (time/duration 1 :minutes)})
@@ -86,23 +93,27 @@
           (registry/with-check check-1)
           (registry/with-check check-2)
           (registry/with-check check-3)
-          (registry/with-cached-result check-1 outdated-check-1-result)
-          (registry/with-cached-result check-2 current-check-2-result)
-          (registry/with-cached-result check-3 outdated-check-3-result))
+          (registry/with-cached-result check-1-name outdated-check-1-result)
+          (registry/with-cached-result check-2-name current-check-2-result)
+          (registry/with-cached-result check-3-name outdated-check-3-result))
 
         outdated-checks (registry/outdated-checks registry)]
     (is (= #{check-1 check-3} outdated-checks))))
 
 (deftest treats-background-checks-without-result-as-outdated
-  (let [check-1 (checks/background-check :thing-1
+  (let [check-1-name :thing-1
+        check-2-name :thing-2
+        check-3-name :thing-3
+
+        check-1 (checks/background-check check-1-name
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
                   {:time-to-re-evaluation (time/duration 30 :seconds)})
-        check-2 (checks/background-check :thing-2
+        check-2 (checks/background-check check-2-name
                   (fn [_ result-cb]
                     (result-cb (results/unhealthy)))
                   {:time-to-re-evaluation (time/duration 5 :minutes)})
-        check-3 (checks/background-check :thing-3
+        check-3 (checks/background-check check-3-name
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
                   {:time-to-re-evaluation (time/duration 1 :minutes)})
@@ -116,7 +127,7 @@
           (registry/with-check check-1)
           (registry/with-check check-2)
           (registry/with-check check-3)
-          (registry/with-cached-result check-2 current-check-2-result))
+          (registry/with-cached-result check-2-name current-check-2-result))
 
         outdated-checks (registry/outdated-checks registry)]
     (is (= #{check-1 check-3} outdated-checks))))
@@ -152,12 +163,13 @@
   (let [check-fn (spy/spy
                    (fn [_ result-cb]
                      (result-cb (results/unhealthy))))
-        check (checks/background-check :thing check-fn)
+        check-name :thing
+        check (checks/background-check check-name check-fn)
         cached-result (results/healthy)
         registry (-> (registry/empty-registry)
                    (registry/with-check check)
-                   (registry/with-cached-result check cached-result))
-        resolved-result (registry/resolve-check registry :thing)]
+                   (registry/with-cached-result check-name cached-result))
+        resolved-result (registry/resolve-check registry check-name)]
     (is (= (count (spy/calls check-fn)) 0))
     (is (results/healthy? resolved-result))))
 
@@ -165,10 +177,13 @@
   (let [result-1 (results/unhealthy)
         result-2 (results/healthy)
 
-        check-1 (checks/background-check :thing-1
+        check-1-name :thing-1
+        check-2-name :thing-2
+
+        check-1 (checks/background-check check-1-name
                   (fn [_ result-cb]
                     (result-cb result-1)))
-        check-2 (checks/realtime-check :thing-2
+        check-2 (checks/realtime-check check-2-name
                   (fn [_ result-cb]
                     (result-cb result-2)))
 
@@ -177,7 +192,7 @@
                    (registry/with-check check-2))
 
         results (registry/resolve-checks registry)]
-    (is (= {:thing-1 result-1 :thing-2 result-2} results))))
+    (is (= {check-1-name result-1 check-2-name result-2} results))))
 
 (deftest resolves-all-realtime-checks-every-time
   (let [check-fn-1 (spy/spy
@@ -220,8 +235,11 @@
                      (fn [_ result-cb]
                        (result-cb (results/healthy))))
 
-        check-1 (checks/background-check :thing-1 check-fn-1)
-        check-2 (checks/background-check :thing-2 check-fn-2)
+        check-1-name :thing-1
+        check-2-name :thing-2
+
+        check-1 (checks/background-check check-1-name check-fn-1)
+        check-2 (checks/background-check check-2-name check-fn-2)
 
         registry (-> (registry/empty-registry)
                    (registry/with-check check-1)
@@ -231,8 +249,8 @@
     (is (= (count (spy/calls check-fn-1)) 1))
     (is (= (count (spy/calls check-fn-2)) 1))
 
-    (is (results/unhealthy? (:thing-1 resolved-results)))
-    (is (results/healthy? (:thing-2 resolved-results)))))
+    (is (results/unhealthy? (check-1-name resolved-results)))
+    (is (results/healthy? (check-2-name resolved-results)))))
 
 (deftest resolves-background-checks-as-previous-results-when-available
   (let [check-fn-1 (spy/spy
@@ -242,8 +260,11 @@
                      (fn [_ result-cb]
                        (result-cb (results/healthy))))
 
-        check-1 (checks/background-check :thing-1 check-fn-1)
-        check-2 (checks/background-check :thing-2 check-fn-2)
+        check-1-name :thing-1
+        check-2-name :thing-2
+
+        check-1 (checks/background-check check-1-name check-fn-1)
+        check-2 (checks/background-check check-2-name check-fn-2)
 
         result-1 (results/healthy)
         result-2 (results/unhealthy)
@@ -251,12 +272,12 @@
         registry (-> (registry/empty-registry)
                    (registry/with-check check-1)
                    (registry/with-check check-2)
-                   (registry/with-cached-result check-1 result-1)
-                   (registry/with-cached-result check-2 result-2))
+                   (registry/with-cached-result check-1-name result-1)
+                   (registry/with-cached-result check-2-name result-2))
 
         resolved-results (registry/resolve-checks registry)]
     (is (= (count (spy/calls check-fn-1)) 0))
     (is (= (count (spy/calls check-fn-2)) 0))
 
-    (is (results/healthy? (:thing-1 resolved-results)))
-    (is (results/unhealthy? (:thing-2 resolved-results)))))
+    (is (results/healthy? (check-1-name resolved-results)))
+    (is (results/unhealthy? (check-2-name resolved-results)))))

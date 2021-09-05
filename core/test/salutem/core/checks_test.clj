@@ -1,6 +1,9 @@
 (ns salutem.core.checks-test
   (:require
    [clojure.test :refer :all]
+   [clojure.core.async :as async]
+
+   [tick.alpha.api :as t]
 
    [salutem.core.time :as time]
    [salutem.core.checks :as checks]
@@ -64,3 +67,66 @@
                   (result-cb (results/healthy)))
                 {:timeout check-timeout})]
     (is (= (:timeout check) check-timeout))))
+
+(deftest evaluates-check-returning-result
+  (let [latency (t/new-duration 356 :millis)
+        evaluated-at (t/now)
+        check (checks/realtime-check :thing
+                (fn [_ result-cb]
+                  (result-cb
+                    (results/healthy
+                      {:latency      latency
+                       :evaluated-at evaluated-at}))))]
+    (is (= (checks/evaluate check)
+          (results/healthy
+            {:latency      latency
+             :evaluated-at evaluated-at})))))
+
+(deftest passes-context-map-to-check-function-during-evaluation
+  (let [latency (t/new-duration 356 :millis)
+        evaluated-at (t/now)
+        check (checks/realtime-check :thing
+                (fn [context result-cb]
+                  (result-cb
+                    (results/healthy
+                      {:caller       (:caller context)
+                       :latency      latency
+                       :evaluated-at evaluated-at}))))]
+    (is (= (checks/evaluate check {:caller :thing-consumer})
+          (results/healthy
+            {:caller       :thing-consumer
+             :latency      latency
+             :evaluated-at evaluated-at})))))
+
+(deftest evaluates-asynchronously-when-passed-callback
+  (let [context {:caller :thing-consumer}
+
+        latency (t/new-duration 356 :millis)
+        evaluated-at (t/now)
+
+        check (checks/realtime-check :thing
+                (fn [context result-cb]
+                  (result-cb
+                    (results/healthy
+                      {:caller       (:caller context)
+                       :latency      latency
+                       :evaluated-at evaluated-at}))))
+
+        result-atom (atom nil)
+        callback-fn (fn [result]
+                      (reset! result-atom result))]
+    (checks/evaluate check context callback-fn)
+
+    (loop [attempts 1]
+      (if (not (nil? @result-atom))
+        (is (= @result-atom
+              (results/healthy
+                {:caller       :thing-consumer
+                 :latency      latency
+                 :evaluated-at evaluated-at})))
+        (if (< attempts 5)
+          (do
+            (async/<!! (async/timeout 25))
+            (recur (inc attempts)))
+          (throw (ex-info "Callback function was not called before timeout."
+                   {:check check})))))))

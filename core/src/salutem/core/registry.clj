@@ -20,9 +20,10 @@
   (update-in registry [:checks] assoc (:name check) check))
 
 (defn with-cached-result
-  "Adds the result for the check to the registry, returning a new registry."
-  [registry check result]
-  (update-in registry [:cached-results] assoc (:name check) result))
+  "Adds the result for the check with the given name to the registry,
+   returning a new registry."
+  [registry check-name result]
+  (update-in registry [:cached-results] assoc check-name result))
 
 (defn find-check
   "Finds the check with the given name in the registry. Returns `nil` if no
@@ -55,9 +56,7 @@
   [registry]
   (set
     (filter
-      (fn [check]
-        (results/outdated?
-          (find-cached-result registry (:name check)) check (t/now)))
+      #(results/outdated? (find-cached-result registry (:name %)) %)
       (all-checks registry))))
 
 (defn resolve-check

@@ -14,7 +14,7 @@ ToDo
 Open Questions
 ==============
 
-* How should we handle check that continuously time out?
+* How should we handle checks that continuously time out?
   * This could be the responsibility of the implementer of a check function
   * We could also use exponential backoff in the maintenance pipeline
   * Might be better to leave this at the discretion of the implementer

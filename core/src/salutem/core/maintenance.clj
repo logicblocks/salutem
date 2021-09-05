@@ -102,13 +102,13 @@
       (let [{:keys [check result trigger-id]
              :as   result-message} (async/<! result-channel)]
         (if result-message
-          (do
+          (let [check-name (:name check)]
             (log/info logger ::updater.updating
               {:trigger-id trigger-id
-               :check-name (:name check)
+               :check-name check-name
                :result     result})
             (swap! registry-store
-              registry/with-cached-result check result)
+              registry/with-cached-result check-name result)
             (recur))
           (log/info logger ::updater.stopped))))))
 

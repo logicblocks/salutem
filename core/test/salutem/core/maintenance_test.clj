@@ -206,8 +206,9 @@
         context {:some "context"}
         trigger-id 1
 
+        check-name :thing
         check
-        (checks/background-check :thing
+        (checks/background-check check-name
           (fn [_ result-cb] (result-cb (results/healthy)))
           {:time-to-re-evaluation (time/duration 30 :seconds)})
         outdated-result
@@ -217,7 +218,7 @@
         registry
         (-> (registry/empty-registry)
           (registry/with-check check)
-          (registry/with-cached-result check outdated-result))
+          (registry/with-cached-result check-name outdated-result))
 
         trigger-channel (async/chan)
         evaluation-channel (async/chan)]
@@ -242,16 +243,20 @@
         context {:some " context "}
         trigger-id 1
 
+        check-1-name :thing-1
+        check-2-name :thing-2
+        check-3-name :thing-3
+
         check-1
-        (checks/background-check :thing-1
+        (checks/background-check check-1-name
           (fn [_ result-cb] (result-cb (results/healthy)))
           {:time-to-re-evaluation (time/duration 30 :seconds)})
         check-2
-        (checks/background-check :thing-2
+        (checks/background-check check-2-name
           (fn [_ result-cb] (result-cb (results/healthy)))
           {:time-to-re-evaluation (time/duration 1 :minutes)})
         check-3
-        (checks/background-check :thing-2
+        (checks/background-check check-3-name
           (fn [_ result-cb] (result-cb (results/healthy)))
           {:time-to-re-evaluation (time/duration 45 :seconds)})
 
@@ -270,9 +275,9 @@
           (registry/with-check check-1)
           (registry/with-check check-2)
           (registry/with-check check-3)
-          (registry/with-cached-result check-1 check-1-outdated-result)
-          (registry/with-cached-result check-2 check-2-current-result)
-          (registry/with-cached-result check-3 check-3-outdated-result))
+          (registry/with-cached-result check-1-name check-1-outdated-result)
+          (registry/with-cached-result check-2-name check-2-current-result)
+          (registry/with-cached-result check-3-name check-3-outdated-result))
 
         trigger-channel (async/chan)
         evaluation-channel (async/chan)]
@@ -296,16 +301,20 @@
         context {:some "context"}
         trigger-id 1
 
+        check-1-name :thing-1
+        check-2-name :thing-2
+        check-3-name :thing-3
+
         check-1
-        (checks/background-check :thing-1
+        (checks/background-check check-1-name
           (fn [_ result-cb] (result-cb (results/healthy)))
           {:time-to-re-evaluation (time/duration 30 :seconds)})
         check-2
-        (checks/background-check :thing-2
+        (checks/background-check check-2-name
           (fn [_ result-cb] (result-cb (results/healthy)))
           {:time-to-re-evaluation (time/duration 1 :minutes)})
         check-3
-        (checks/background-check :thing-3
+        (checks/background-check check-3-name
           (fn [_ result-cb] (result-cb (results/healthy)))
           {:time-to-re-evaluation (time/duration 45 :seconds)})
 
@@ -324,9 +333,9 @@
           (registry/with-check check-1)
           (registry/with-check check-2)
           (registry/with-check check-3)
-          (registry/with-cached-result check-1 check-1-outdated-result)
-          (registry/with-cached-result check-2 check-2-current-result)
-          (registry/with-cached-result check-3 check-3-outdated-result))
+          (registry/with-cached-result check-1-name check-1-outdated-result)
+          (registry/with-cached-result check-2-name check-2-current-result)
+          (registry/with-cached-result check-3-name check-3-outdated-result))
 
         trigger-channel (async/chan)
         evaluation-channel (async/chan)]
@@ -343,11 +352,11 @@
 
     (is (logged? test-logger #{:in-any-order}
           {:context {:trigger-id 1
-                     :check-name (:name check-1)}
+                     :check-name check-1-name}
            :level   :info
            :type    :salutem.core.maintenance/refresher.evaluating}
           {:context {:trigger-id 1
-                     :check-name (:name check-3)}
+                     :check-name check-3-name}
            :level   :info
            :type    :salutem.core.maintenance/refresher.evaluating}))))
 
@@ -356,8 +365,9 @@
         dependencies {:logger logger}
         context {:some "context"}
 
+        check-name :thing
         check
-        (checks/background-check :thing
+        (checks/background-check check-name
           (fn [_ result-cb] (result-cb (results/healthy)))
           {:time-to-re-evaluation (time/duration 30 :seconds)})
         outdated-result
@@ -367,7 +377,7 @@
         registry
         (-> (registry/empty-registry)
           (registry/with-check check)
-          (registry/with-cached-result check outdated-result))
+          (registry/with-cached-result check-name outdated-result))
 
         trigger-channel (async/chan)
         evaluation-channel (maintenance/refresher dependencies trigger-channel)]
@@ -770,7 +780,8 @@
   (let [logger (cartus-null/logger)
         dependencies {:logger logger}
 
-        check (checks/background-check :thing
+        check-name :thing
+        check (checks/background-check check-name
                 (fn [_ result-cb] (result-cb (results/healthy))))
         result (results/healthy
                  {:latency (t/new-duration 267 :millis)})
@@ -800,7 +811,7 @@
       (loop [attempts 1]
         (if @updated?
           (is (= @registry-store
-                (registry/with-cached-result registry check result)))
+                (registry/with-cached-result registry check-name result)))
           (if (< attempts 5)
             (do
               (async/<!! (async/timeout 25))
@@ -815,11 +826,15 @@
   (let [logger (cartus-null/logger)
         dependencies {:logger logger}
 
-        check-1 (checks/background-check :thing-1
+        check-1-name :thing-1
+        check-2-name :thing-2
+        check-3-name :thing-3
+
+        check-1 (checks/background-check check-1-name
                   (fn [_ result-cb] (result-cb (results/healthy))))
-        check-2 (checks/background-check :thing-2
+        check-2 (checks/background-check check-2-name
                   (fn [_ result-cb] (result-cb (results/healthy))))
-        check-3 (checks/background-check :thing-3
+        check-3 (checks/background-check check-3-name
                   (fn [_ result-cb] (result-cb (results/healthy))))
 
         result-1 (results/healthy
@@ -865,9 +880,9 @@
         (if (= @updated-count 3)
           (is (= @registry-store
                 (-> registry
-                  (registry/with-cached-result check-1 result-1)
-                  (registry/with-cached-result check-2 result-2)
-                  (registry/with-cached-result check-3 result-3))))
+                  (registry/with-cached-result check-1-name result-1)
+                  (registry/with-cached-result check-2-name result-2)
+                  (registry/with-cached-result check-3-name result-3))))
           (if (< attempts 5)
             (do
               (async/<!! (async/timeout 25))
