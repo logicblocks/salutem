@@ -9,7 +9,7 @@ require 'yaml'
 task :default => [
     :'library:initialise',
     :'library:check',
-    :'library:test:unit'
+    :'library:test:all'
 ]
 
 RubyLeiningen::Commands.define_custom_command("modules")  do |config, opts|
@@ -134,7 +134,14 @@ namespace :library do
     RakeLeiningen.define_test_task(
       name: :unit,
       type: 'unit',
-      profile: 'test')
+      profile: 'unit')
+
+    RakeLeiningen.define_test_task(
+      name: :performance,
+      type: 'performance',
+      profile: 'performance')
+
+    task :all => [:unit, :performance]
   end
 
   namespace :publish do

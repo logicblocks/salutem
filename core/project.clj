@@ -8,4 +8,8 @@
                  [io.logicblocks/cartus.core "_"]
                  [io.logicblocks/cartus.null "_"]
 
-                 [tick "_"]])
+                 [tick "_"]]
+
+  :test-paths ["test/shared"
+               "test/unit"
+               "test/performance"])

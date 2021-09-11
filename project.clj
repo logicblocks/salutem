@@ -82,9 +82,13 @@
    [:shared
     {:source-paths ["dev"]}]
 
-   :test
-   [:shared]
+   :unit
+   [:shared {:test-paths ^:replace ["test/shared"
+                                    "test/unit"]}]
 
+   :performance
+   [:shared {:test-paths ^:replace ["test/shared"
+                                    "test/performance"]}]
    :codox
    [:shared
     {:dependencies [[io.logicblocks/salutem.core :version]
@@ -95,6 +99,7 @@
                     [io.logicblocks/cartus.null "_"]
 
                     [tick "_"]]
+
      :source-paths ["core/src"]}]
 
    :prerelease
@@ -137,6 +142,9 @@
      ["vcs" "push"]]}}
 
   :source-paths []
+  :test-paths ["test/shared"
+               "test/unit"
+               "test/performance"]
 
   :codox
   {:namespaces  [#"^salutem\."]
