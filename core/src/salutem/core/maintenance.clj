@@ -41,7 +41,7 @@
            (async/close! trigger-channel)
            (log/info logger ::maintainer.stopped
              {:triggers-sent triggers-sent}))))
-     shutdown-channel)))
+     {:shutdown-channel shutdown-channel})))
 
 (defn refresher
   ([dependencies trigger-channel]
@@ -69,30 +69,135 @@
            (do
              (async/close! evaluation-channel)
              (log/info logger ::refresher.stopped))))))
-   evaluation-channel))
+   {:evaluation-channel evaluation-channel}))
+
+(def ^:private empty-evaluation-state
+  {:checks #{} :response-channels #{}})
+
+(defn evaluation-state-store
+  ([] (ref empty-evaluation-state))
+  ([logger]
+   (add-watch (ref empty-evaluation-state)
+     :logger
+     (fn [_ _ old-state new-state]
+       (log/debug logger ::evaluator.state-changed
+         {:old-state old-state
+          :new-state new-state})))))
+
+(defn- in-flight-checks [state-store]
+  (:checks @state-store))
+
+(defn- in-flight-response-channels [state-store]
+  (vec (:response-channels (deref state-store))))
+
+(defn- in-flight? [state-store check-name]
+  (contains? (in-flight-checks state-store) check-name))
+
+(defn- mark-check-in-flight [state-store check-name]
+  (alter state-store update-in [:checks] conj check-name))
+
+(defn- mark-check-complete [state-store check-name]
+  (alter state-store update-in [:checks] disj check-name))
+
+(defn- remember-in-flight-response-channel
+  [state-store response-channel]
+  (alter state-store update-in [:response-channels]
+    conj response-channel))
+
+(defn- forget-in-flight-response-channel
+  [state-store response-channel]
+  (alter state-store update-in [:response-channels]
+    disj response-channel))
+
+(defn- hold-check [state-store check-name]
+  (dosync
+    (when-not (in-flight? state-store check-name) (mark-check-in-flight state-store check-name))))
+
+(defn- park-check [state-store check-name response-channel]
+  (dosync
+    (remember-in-flight-response-channel state-store response-channel)))
+
+(defn- complete-check [state-store check-name response-channel]
+  (dosync
+    (forget-in-flight-response-channel state-store response-channel)
+    (mark-check-complete state-store check-name)))
+
+(defn- evaluation-message? [message channel evaluation-channel]
+  (and (= channel evaluation-channel) (not (nil? message))))
+
+(defn- shutdown-message? [message channel evaluation-channel]
+  (and (= channel evaluation-channel) (nil? message)))
 
 (defn evaluator
   ([dependencies evaluation-channel]
-   (evaluator dependencies evaluation-channel (async/chan 1)))
-  ([dependencies evaluation-channel result-channel]
-   (let [logger (:logger dependencies)]
+   (evaluator dependencies
+     (evaluation-state-store)
+     evaluation-channel))
+
+  ([dependencies state-store evaluation-channel]
+   (evaluator dependencies state-store evaluation-channel
+     (async/chan 10) (async/chan (async/sliding-buffer 10))))
+
+  ([dependencies evaluation-channel result-channel skip-channel]
+   (evaluator dependencies
+     (evaluation-state-store)
+     evaluation-channel
+     result-channel skip-channel))
+
+  ([dependencies state-store evaluation-channel result-channel skip-channel]
+   (let [logger (:logger dependencies)
+         output-channels {:skip-channel   skip-channel
+                          :result-channel result-channel}]
      (log/info logger ::evaluator.starting)
      (async/go-loop []
-       (let [{:keys [check context trigger-id]
-              :or   {context {}}
-              :as   evaluation-message} (async/<! evaluation-channel)]
-         (if evaluation-message
+       (let [response-channels (in-flight-response-channels state-store)
+             [message channel]
+             (async/alts! (conj response-channels evaluation-channel)
+               :priority true)]
+         (cond
+           (shutdown-message? message channel evaluation-channel)
            (do
-             (log/info logger ::evaluator.evaluating
+             (doseq [channel (vals output-channels)]
+               (async/close! channel))
+             (doseq [channel (in-flight-response-channels state-store)]
+               (async/close! channel))
+             (log/info logger ::evaluator.stopped))
+
+           (evaluation-message? message channel evaluation-channel)
+           (let [{:keys [check context trigger-id] :or {context {}}} message
+                 check-name (:name check)]
+             (log/info logger ::evaluator.holding
                {:trigger-id trigger-id
-                :check-name (:name check)})
-             (checks/attempt
-               dependencies trigger-id check context result-channel)
+                :check-name check-name})
+             (if (hold-check state-store check-name)
+               (do
+                 (log/info logger ::evaluator.evaluating
+                   {:trigger-id trigger-id
+                    :check-name check-name})
+                 (park-check state-store check-name
+                   (checks/attempt
+                     dependencies trigger-id check context)))
+               (do
+                 (log/info logger ::evaluator.skipping
+                   {:trigger-id trigger-id
+                    :check-name check-name})
+                 (async/>! skip-channel
+                   {:trigger-id trigger-id
+                    :check      check})))
              (recur))
-           (do
-             (async/close! result-channel)
-             (log/info logger ::evaluator.stopped)))))
-     result-channel)))
+
+           :else
+           (let [{:keys [trigger-id check result]} message
+                 check-name (:name check)]
+             (log/info logger ::evaluator.completing
+               {:trigger-id trigger-id
+                :check-name check-name
+                :result     result})
+             (complete-check state-store check-name channel)
+             (async/>! result-channel message)
+             (async/close! channel)
+             (recur)))))
+     output-channels)))
 
 (defn updater
   [dependencies registry-store result-channel]
@@ -193,6 +298,7 @@
             trigger-channel
             evaluation-channel
             result-channel
+            skip-channel
             updater-result-channel
             notifier-result-channel
             notification-callback-fns]
@@ -201,6 +307,7 @@
             trigger-channel           (async/chan (async/sliding-buffer 1))
             evaluation-channel        (async/chan 10)
             result-channel            (async/chan 10)
+            skip-channel              (async/chan (async/sliding-buffer 10))
             updater-result-channel    (async/chan 10)
             notifier-result-channel   (async/chan 10)
             notification-callback-fns []}}]
@@ -213,7 +320,7 @@
          (async/tap result-mult updater-result-channel))
        (notifier dependencies notification-callback-fns
          (async/tap result-mult notifier-result-channel))
-       (evaluator dependencies evaluation-channel result-channel)
+       (evaluator dependencies evaluation-channel result-channel skip-channel)
        (refresher dependencies trigger-channel evaluation-channel)
        (maintainer dependencies registry-store context interval
          trigger-channel shutdown-channel))

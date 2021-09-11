@@ -26,15 +26,14 @@
         registry-store (atom registry)
 
         trigger-channel (async/chan 10)
-        shutdown-channel
-        (maintenance/maintainer dependencies
-          registry-store context interval trigger-channel)]
+        maintainer (maintenance/maintainer dependencies
+                     registry-store context interval trigger-channel)]
     (is (logged? logger
           {:context {:interval #time/duration "PT0.05S"}
            :level   :info
            :type    :salutem.core.maintenance/maintainer.starting}))
 
-    (async/close! shutdown-channel)))
+    (async/close! (:shutdown-channel maintainer))))
 
 (deftest maintainer-puts-trigger-on-trigger-channel-every-interval
   (let [logger (cartus-null/logger)
@@ -51,9 +50,8 @@
         registry-store (atom registry)
 
         trigger-channel (async/chan 10)
-        shutdown-channel
-        (maintenance/maintainer dependencies
-          registry-store context interval trigger-channel)]
+        maintainer (maintenance/maintainer dependencies
+                     registry-store context interval trigger-channel)]
 
     (async/<!! (async/timeout 150))
 
@@ -70,7 +68,7 @@
                :context    context}]
             triggers)))
 
-    (async/close! shutdown-channel)))
+    (async/close! (:shutdown-channel maintainer))))
 
 (deftest maintainer-logs-event-every-interval-when-logger-in-context
   (let [test-logger (cartus-test/logger)
@@ -82,10 +80,9 @@
         registry-store (atom registry)
 
         trigger-channel (async/chan 10)
-        shutdown-channel
-        (t/with-clock (t/clock "2020-07-23T21:41:12.283Z")
-          (maintenance/maintainer dependencies
-            registry-store context interval trigger-channel))]
+        maintainer (t/with-clock (t/clock "2020-07-23T21:41:12.283Z")
+                     (maintenance/maintainer dependencies
+                       registry-store context interval trigger-channel))]
 
     (async/<!! (async/timeout 120))
 
@@ -97,7 +94,7 @@
            :level   :info
            :type    :salutem.core.maintenance/maintainer.triggering}))
 
-    (async/close! shutdown-channel)))
+    (async/close! (:shutdown-channel maintainer))))
 
 (deftest maintainer-closes-trigger-channel-when-shutdown-channel-closed
   (let [logger (cartus-null/logger)
@@ -114,11 +111,10 @@
         registry-store (atom registry)
 
         trigger-channel (async/chan 10)
-        shutdown-channel
-        (maintenance/maintainer dependencies
-          registry-store context interval trigger-channel)]
+        maintainer (maintenance/maintainer dependencies
+                     registry-store context interval trigger-channel)]
 
-    (async/close! shutdown-channel)
+    (async/close! (:shutdown-channel maintainer))
 
     (is (nil? (tsa/<!!-or-timeout trigger-channel)))))
 
@@ -132,12 +128,11 @@
         registry-store (atom registry)
 
         trigger-channel (async/chan 10)
-        shutdown-channel
-        (t/with-clock (t/clock "2020-07-23T21:41:12.283Z")
-          (maintenance/maintainer dependencies
-            registry-store context interval trigger-channel))]
+        maintainer (t/with-clock (t/clock "2020-07-23T21:41:12.283Z")
+                     (maintenance/maintainer dependencies
+                       registry-store context interval trigger-channel))]
 
-    (async/close! shutdown-channel)
+    (async/close! (:shutdown-channel maintainer))
 
     (async/<!! (async/timeout 50))
 
@@ -371,10 +366,10 @@
           (registry/with-cached-result check-name outdated-result))
 
         trigger-channel (async/chan)
-        evaluation-channel (maintenance/refresher dependencies trigger-channel)]
+        refresher (maintenance/refresher dependencies trigger-channel)]
     (async/put! trigger-channel {:registry registry :context context})
 
-    (let [evaluation (tsa/<!!-or-timeout evaluation-channel)]
+    (let [evaluation (tsa/<!!-or-timeout (:evaluation-channel refresher))]
       (is (= (:check evaluation) check))
       (is (= (:context evaluation) context)))
 
@@ -416,14 +411,47 @@
         dependencies {:logger test-logger}
 
         evaluation-channel (async/chan)
-        result-channel (async/chan)]
+        result-channel (async/chan)
+        skip-channel (async/chan)]
     (maintenance/evaluator dependencies
-      evaluation-channel result-channel)
+      evaluation-channel result-channel skip-channel)
 
     (is (logged? test-logger
           {:context {}
            :level   :info
            :type    :salutem.core.maintenance/evaluator.starting}))
+
+    (async/close! evaluation-channel)))
+
+(deftest evaluator-logs-event-on-attempting-to-hold-check
+  (let [test-logger (cartus-test/logger)
+        dependencies {:logger test-logger}
+        context {:some "context"}
+
+        check (checks/background-check :thing
+                (fn [_ result-cb]
+                  (result-cb (results/healthy))))
+
+        trigger-id 1
+
+        evaluation-channel (async/chan)
+        result-channel (async/chan)
+        skip-channel (async/chan)]
+    (maintenance/evaluator dependencies
+      evaluation-channel result-channel skip-channel)
+
+    (async/put! evaluation-channel
+      {:trigger-id trigger-id
+       :check      check
+       :context    context})
+
+    (tsa/<!!-or-timeout result-channel)
+
+    (is (logged? test-logger
+          {:context {:trigger-id trigger-id
+                     :check-name :thing}
+           :level   :info
+           :type    :salutem.core.maintenance/evaluator.holding}))
 
     (async/close! evaluation-channel)))
 
@@ -439,14 +467,17 @@
         trigger-id 1
 
         evaluation-channel (async/chan)
-        result-channel (async/chan)]
+        result-channel (async/chan)
+        skip-channel (async/chan)]
     (maintenance/evaluator dependencies
-      evaluation-channel result-channel)
+      evaluation-channel result-channel skip-channel)
 
     (async/put! evaluation-channel
       {:trigger-id trigger-id
        :check      check
        :context    context})
+
+    (tsa/<!!-or-timeout result-channel)
 
     (is (logged? test-logger
           {:context {:trigger-id trigger-id
@@ -471,9 +502,10 @@
         trigger-id 1
 
         evaluation-channel (async/chan)
-        result-channel (async/chan)]
+        result-channel (async/chan)
+        skip-channel (async/chan)]
     (maintenance/evaluator dependencies
-      evaluation-channel result-channel)
+      evaluation-channel result-channel skip-channel)
 
     (async/put! evaluation-channel
       {:trigger-id trigger-id
@@ -505,20 +537,56 @@
         trigger-id 1
 
         evaluation-channel (async/chan)
-        result-channel (async/chan)]
+        result-channel (async/chan)
+        skip-channel (async/chan)]
     (maintenance/evaluator dependencies
-      evaluation-channel result-channel)
+      evaluation-channel result-channel skip-channel)
 
     (async/put! evaluation-channel
       {:trigger-id trigger-id
        :check      check
        :context    context})
 
-    (let [{:keys [result] :as result-message} (tsa/<!!-or-timeout result-channel)]
+    (let [{:keys [result] :as result-message}
+          (tsa/<!!-or-timeout result-channel)]
       (is (= (:trigger-id result-message) trigger-id))
       (is (results/unhealthy? result))
       (is (= (:latency result) (t/new-duration 1 :seconds)))
       (is (= (:some result) "context")))
+
+    (async/close! evaluation-channel)))
+
+(deftest evaluator-logs-event-on-completing-check
+  (let [test-logger (cartus-test/logger)
+        dependencies {:logger test-logger}
+        context {:some "context"}
+
+        result (results/unhealthy)
+        check (checks/background-check :thing
+                (fn [_ result-cb]
+                  (result-cb result)))
+
+        trigger-id 1
+
+        evaluation-channel (async/chan)
+        result-channel (async/chan)
+        skip-channel (async/chan)]
+    (maintenance/evaluator dependencies
+      evaluation-channel result-channel skip-channel)
+
+    (async/put! evaluation-channel
+      {:trigger-id trigger-id
+       :check      check
+       :context    context})
+
+    (tsa/<!!-or-timeout result-channel)
+
+    (is (logged? test-logger
+          {:context {:trigger-id trigger-id
+                     :check-name :thing
+                     :result     result}
+           :level   :info
+           :type    ::maintenance/evaluator.completing}))
 
     (async/close! evaluation-channel)))
 
@@ -549,9 +617,10 @@
         trigger-id 1
 
         evaluation-channel (async/chan)
-        result-channel (async/chan)]
+        result-channel (async/chan)
+        skip-channel (async/chan)]
     (maintenance/evaluator dependencies
-      evaluation-channel result-channel)
+      evaluation-channel result-channel skip-channel)
 
     (async/put! evaluation-channel
       {:trigger-id trigger-id
@@ -571,7 +640,9 @@
                 (filter #(= (get-in % [:check :name]) name))
                 first
                 :result))]
-      (let [results (async/<!! (async/into [] (async/take 3 result-channel)))
+      (let [results (tsa/<!!-or-timeout
+                      (async/into [] (async/take 3 result-channel))
+                      (t/new-duration 300 :millis))
             check-1-result (find-result results :thing-1)
             check-2-result (find-result results :thing-2)
             check-3-result (find-result results :thing-3)]
@@ -586,6 +657,139 @@
         (is (results/unhealthy? check-3-result))
         (is (= (:latency check-3-result) (t/new-duration 2 :seconds)))
         (is (= (:some check-3-result) "context"))))
+
+    (async/close! evaluation-channel)))
+
+(deftest evaluator-skips-evaluation-of-check-if-already-attempting
+  (let [logger (cartus-null/logger)
+        dependencies {:logger logger}
+        context {:some "context"}
+
+        call-count (atom 0)
+
+        check (checks/background-check :thing
+                (fn [context result-cb]
+                  (swap! call-count inc)
+                  (Thread/sleep 50)
+                  (result-cb
+                    (results/healthy
+                      (merge context
+                        {:latency (t/new-duration 1 :seconds)})))))
+        trigger-id-1 1
+        trigger-id-2 2
+
+        evaluation-channel (async/chan 1)
+        result-channel (async/chan 1)
+        skip-channel (async/chan 1)]
+    (maintenance/evaluator dependencies
+      evaluation-channel result-channel skip-channel)
+
+    (async/put! evaluation-channel
+      {:trigger-id trigger-id-1
+       :check      check
+       :context    context})
+    (async/put! evaluation-channel
+      {:trigger-id trigger-id-2
+       :check      check
+       :context    context})
+
+    (let [result-message (tsa/<!!-or-timeout result-channel)
+          skip-message (tsa/<!!-or-timeout skip-channel)]
+      (is (= 1 @call-count))
+
+      (is (= trigger-id-1 (:trigger-id result-message)))
+      (is (= check (:check result-message)))
+      (is (results/healthy? (:result result-message)))
+      (is (= "context" (get-in result-message [:result :some])))
+      (is (= (t/new-duration 1 :seconds)
+            (get-in result-message [:result :latency])))
+
+      (is (= trigger-id-2 (:trigger-id skip-message)))
+      (is (= check (:check skip-message))))
+
+    (async/close! evaluation-channel)))
+
+(deftest evaluator-re-evaluates-check-after-previous-attempt-completes
+  (let [logger (cartus-null/logger)
+        dependencies {:logger logger}
+        context {:some "context"}
+
+        call-count (atom 0)
+
+        check (checks/background-check :thing
+                (fn [context result-cb]
+                  (swap! call-count inc)
+                  (result-cb
+                    (results/healthy
+                      (merge context
+                        {:latency (t/new-duration 1 :seconds)})))))
+        trigger-id-1 1
+        trigger-id-2 2
+
+        evaluation-channel (async/chan 1)
+        result-channel (async/chan 1)
+        skip-channel (async/chan 1)]
+    (maintenance/evaluator dependencies
+      evaluation-channel result-channel skip-channel)
+
+    (async/put! evaluation-channel
+      {:trigger-id trigger-id-1
+       :check      check
+       :context    context})
+
+    (tsa/<!!-or-timeout result-channel)
+
+    (async/put! evaluation-channel
+      {:trigger-id trigger-id-2
+       :check      check
+       :context    context})
+
+    (let [result-message (tsa/<!!-or-timeout result-channel)]
+      (is (= 2 @call-count))
+
+      (is (= trigger-id-2 (:trigger-id result-message)))
+      (is (= check (:check result-message)))
+      (is (results/healthy? (:result result-message)))
+      (is (= "context" (get-in result-message [:result :some])))
+      (is (= (t/new-duration 1 :seconds)
+            (get-in result-message [:result :latency]))))
+
+    (async/close! evaluation-channel)))
+
+(deftest evaluator-logs-event-on-skipping-check
+  (let [test-logger (cartus-test/logger)
+        dependencies {:logger test-logger}
+        context {:some "context"}
+
+        check (checks/background-check :thing
+                (fn [_ result-cb]
+                  (Thread/sleep 50)
+                  (result-cb (results/healthy))))
+        trigger-id-1 1
+        trigger-id-2 2
+
+        evaluation-channel (async/chan 1)
+        result-channel (async/chan 1)
+        skip-channel (async/chan 1)]
+    (maintenance/evaluator dependencies
+      evaluation-channel result-channel skip-channel)
+
+    (async/put! evaluation-channel
+      {:trigger-id trigger-id-1
+       :check      check
+       :context    context})
+    (async/put! evaluation-channel
+      {:trigger-id trigger-id-2
+       :check      check
+       :context    context})
+
+    (tsa/<!!-or-timeout result-channel)
+
+    (is (logged? test-logger
+          {:context {:trigger-id trigger-id-2
+                     :check-name :thing}
+           :level   :info
+           :type    ::maintenance/evaluator.skipping}))
 
     (async/close! evaluation-channel)))
 
@@ -604,9 +808,10 @@
         trigger-id 1
 
         evaluation-channel (async/chan)
-        result-channel (async/chan)]
+        result-channel (async/chan)
+        skip-channel (async/chan)]
     (maintenance/evaluator dependencies
-      evaluation-channel result-channel)
+      evaluation-channel result-channel skip-channel)
 
     (async/put! evaluation-channel
       {:trigger-id trigger-id
@@ -639,9 +844,10 @@
         trigger-id 1
 
         evaluation-channel (async/chan)
-        result-channel (async/chan)]
+        result-channel (async/chan)
+        skip-channel (async/chan)]
     (maintenance/evaluator dependencies
-      evaluation-channel result-channel)
+      evaluation-channel result-channel skip-channel)
 
     (async/put! evaluation-channel
       {:trigger-id trigger-id
@@ -670,9 +876,10 @@
         trigger-id 1
 
         evaluation-channel (async/chan)
-        result-channel (async/chan)]
+        result-channel (async/chan)
+        skip-channel (async/chan)]
     (maintenance/evaluator dependencies
-      evaluation-channel result-channel)
+      evaluation-channel result-channel skip-channel)
 
     (async/put! evaluation-channel
       {:trigger-id trigger-id
@@ -704,15 +911,16 @@
         trigger-id 1
 
         evaluation-channel (async/chan)
-        result-channel (maintenance/evaluator dependencies
-                         evaluation-channel)]
+        evaluator (maintenance/evaluator dependencies
+                    evaluation-channel)]
 
     (async/put! evaluation-channel
       {:trigger-id trigger-id
        :check      check
        :context    context})
 
-    (let [{:keys [result] :as result-message} (tsa/<!!-or-timeout result-channel)]
+    (let [{:keys [result] :as result-message}
+          (tsa/<!!-or-timeout (:result-channel evaluator))]
       (is (= (:trigger-id result-message) trigger-id))
       (is (results/unhealthy? result))
       (is (= (:latency result) (t/new-duration 1 :seconds)))
@@ -725,9 +933,10 @@
         dependencies {:logger logger}
 
         evaluation-channel (async/chan)
-        result-channel (async/chan)]
+        result-channel (async/chan)
+        skip-channel (async/chan)]
     (maintenance/evaluator dependencies
-      evaluation-channel result-channel)
+      evaluation-channel result-channel skip-channel)
 
     (async/close! evaluation-channel)
 
@@ -738,9 +947,10 @@
         dependencies {:logger test-logger}
 
         evaluation-channel (async/chan)
-        result-channel (async/chan)]
+        result-channel (async/chan)
+        skip-channel (async/chan)]
     (maintenance/evaluator dependencies
-      evaluation-channel result-channel)
+      evaluation-channel result-channel skip-channel)
 
     (async/close! evaluation-channel)
 

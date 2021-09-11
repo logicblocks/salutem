@@ -29,7 +29,7 @@
               [lein-cljfmt "0.7.0"]
               [lein-kibit "0.1.8"]
               [lein-bikeshed "0.5.2"]
-              [jonase/eastwood "0.3.11"]]
+              [jonase/eastwood "0.9.9"]]
 
     :cloverage
              {:ns-exclude-regex [#"^user"]}

@@ -112,64 +112,66 @@
   (= (:type check) :realtime))
 
 (defn attempt
-  [dependencies trigger-id check context result-channel]
-  (let [logger (or (:logger dependencies) (cartus-null/logger))
-        check-name (:name check)]
-    (async/go
-      (let [{:keys [check-fn timeout]} check
-            callback-channel (async/chan)
-            exception-channel (async/chan 1)]
-        (log/info logger ::attempt.starting
-          {:trigger-id trigger-id
-           :check-name check-name})
-        (try
-          (check-fn context
-            (fn [result]
-              (async/put! callback-channel result)))
-          (catch Exception exception
-            (async/>! exception-channel exception)))
-        (async/alt!
-          exception-channel
-          ([exception]
+  ([dependencies trigger-id check context]
+   (attempt dependencies trigger-id check context (async/chan 1)))
+  ([dependencies trigger-id check context result-channel]
+   (let [logger (or (:logger dependencies) (cartus-null/logger))
+         check-name (:name check)]
+     (async/go
+       (let [{:keys [check-fn timeout]} check
+             callback-channel (async/chan)
+             exception-channel (async/chan 1)]
+         (log/info logger ::attempt.starting
+           {:trigger-id trigger-id
+            :check-name check-name})
+         (try
+           (check-fn context
+             (fn [result]
+               (async/put! callback-channel result)))
+           (catch Exception exception
+             (async/>! exception-channel exception)))
+         (async/alt!
+           exception-channel
+           ([exception]
+            (do
+              (log/info logger ::attempt.threw-exception
+                {:trigger-id trigger-id
+                 :check-name check-name
+                 :exception  exception})
+              (async/>! result-channel
+                {:trigger-id trigger-id
+                 :check      check
+                 :result     (results/unhealthy
+                               {:salutem/reason    :threw-exception
+                                :salutem/exception exception})})))
+
+           callback-channel
+           ([result]
+            (do
+              (log/info logger ::attempt.completed
+                {:trigger-id trigger-id
+                 :check-name check-name
+                 :result     result})
+              (async/>! result-channel
+                {:trigger-id trigger-id
+                 :check      check
+                 :result     result})))
+
+           (async/timeout (t/millis timeout))
            (do
-             (log/info logger ::attempt.threw-exception
+             (log/info logger ::attempt.timed-out
                {:trigger-id trigger-id
-                :check-name check-name
-                :exception  exception})
+                :check-name check-name})
              (async/>! result-channel
                {:trigger-id trigger-id
                 :check      check
                 :result     (results/unhealthy
-                              {:salutem/reason    :threw-exception
-                               :salutem/exception exception})})))
+                              {:salutem/reason :timed-out})}))
 
-          callback-channel
-          ([result]
-           (do
-             (log/info logger ::attempt.completed
-               {:trigger-id trigger-id
-                :check-name check-name
-                :result     result})
-             (async/>! result-channel
-               {:trigger-id trigger-id
-                :check      check
-                :result     result})))
-
-          (async/timeout (t/millis timeout))
-          (do
-            (log/info logger ::attempt.timed-out
-              {:trigger-id trigger-id
-               :check-name check-name})
-            (async/>! result-channel
-              {:trigger-id trigger-id
-               :check      check
-               :result     (results/unhealthy
-                             {:salutem/reason :timed-out})}))
-
-          :priority true)
-        (async/close! exception-channel)
-        (async/close! callback-channel))))
-  result-channel)
+           :priority true)
+         (async/close! exception-channel)
+         (async/close! callback-channel))))
+   result-channel))
 
 (defn- evaluation-attempt [check context]
   (let [logger (or (:logger context) (cartus-null/logger))
