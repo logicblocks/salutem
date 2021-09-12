@@ -25,14 +25,14 @@
                  (Thread/sleep 200)
                  (result-cb (salutem/result :never-returned))))
              {:timeout (salutem/duration 100 :millis)})
-          (range 1 101))
+          (range 1 251))
         exception-background-checks
         (map
           #(salutem/background-check
              (check-name :exception-background %)
              (fn [_ _]
                (throw (ex-info "Oops" {:id %}))))
-          (range 101 201))
+          (range 251 501))
         healthy-background-checks
         (map
           #(salutem/background-check
@@ -41,7 +41,7 @@
                (future
                  (Thread/sleep (rand-int 50))
                  (result-cb (salutem/healthy {:id %})))))
-          (range 201 301))
+          (range 501 751))
         unhealthy-background-checks
         (map
           #(salutem/background-check
@@ -50,7 +50,7 @@
                (future
                  (Thread/sleep (rand-int 50))
                  (result-cb (salutem/unhealthy {:id %})))))
-          (range 301 401))
+          (range 751 1001))
         all-checks
         (concat
           timeout-background-checks
@@ -74,10 +74,10 @@
       (when (< @update-counter check-count)
         (recur)))
 
-    (is (= {:timed-out       100
-            :threw-exception 100
-            :healthy         100
-            :unhealthy       100}
+    (is (= {:timed-out       250
+            :threw-exception 250
+            :healthy         250
+            :unhealthy       250}
           (reduce
             (fn [acc result]
               (let [category
@@ -90,6 +90,9 @@
              :healthy         0
              :unhealthy       0}
             (vals (salutem/resolve-checks @registry-store)))))
+
+    ; 1000 checks as defined above would take anywhere up to 100 seconds to run
+    ; if they weren't running concurrently or in parallel
     (is (t/< (t/between epoch (t/now))
           (t/new-duration 5 :seconds)))
 

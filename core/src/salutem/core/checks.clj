@@ -145,6 +145,17 @@
                                {:salutem/reason    :threw-exception
                                 :salutem/exception exception})})))
 
+           (async/timeout (t/millis timeout))
+           (do
+             (log/info logger ::attempt.timed-out
+               {:trigger-id trigger-id
+                :check-name check-name})
+             (async/>! result-channel
+               {:trigger-id trigger-id
+                :check      check
+                :result     (results/unhealthy
+                              {:salutem/reason :timed-out})}))
+
            callback-channel
            ([result]
             (do
@@ -156,17 +167,6 @@
                 {:trigger-id trigger-id
                  :check      check
                  :result     result})))
-
-           (async/timeout (t/millis timeout))
-           (do
-             (log/info logger ::attempt.timed-out
-               {:trigger-id trigger-id
-                :check-name check-name})
-             (async/>! result-channel
-               {:trigger-id trigger-id
-                :check      check
-                :result     (results/unhealthy
-                              {:salutem/reason :timed-out})}))
 
            :priority true)
          (async/close! exception-channel)
