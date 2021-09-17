@@ -111,7 +111,8 @@
 
 (defn- hold-check [state-store check-name]
   (dosync
-    (when-not (in-flight? state-store check-name) (mark-check-in-flight state-store check-name))))
+    (when-not (in-flight? state-store check-name)
+      (mark-check-in-flight state-store check-name))))
 
 (defn- park-check [state-store check-name response-channel]
   (dosync
@@ -295,22 +296,22 @@
   ([registry-store
     {:keys [context
             interval
+            notification-callback-fns
             trigger-channel
             evaluation-channel
             result-channel
             skip-channel
             updater-result-channel
-            notifier-result-channel
-            notification-callback-fns]
+            notifier-result-channel]
      :or   {context                   {}
             interval                  (t/new-duration 200 :millis)
+            notification-callback-fns []
             trigger-channel           (async/chan (async/sliding-buffer 1))
             evaluation-channel        (async/chan 10)
             result-channel            (async/chan 10)
             skip-channel              (async/chan (async/sliding-buffer 10))
             updater-result-channel    (async/chan 10)
-            notifier-result-channel   (async/chan 10)
-            notification-callback-fns []}}]
+            notifier-result-channel   (async/chan 10)}}]
    (let [logger (get context :logger (null/logger))
          dependencies {:logger logger}
          result-mult (async/mult result-channel)

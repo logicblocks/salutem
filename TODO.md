@@ -1,11 +1,19 @@
 ToDo
 ====
 
-* Add tests of attempt process
+* Parallelise `resolve-checks`
+* Allow async versions of `resolve-check` and `resolve-checks`
+* Document: 
+  * `checks/attempt`
+  * `maintenance/maintainer`
+  * `maintenance/refreshher`
+  * `maintenance/evaluation-state-store`
+  * `maintenance/evaluator`
+  * `maintenance/updater`
+  * `maintenance/notifier`
 * Include context of timeout in unhealthy response on attempt timeout
 * Add database check function
 * Add service check function
-* Add RegistryStore to domain diagram and definitions
 * Add `refresh-results` function to registry namespace and expose
 * Consider introducing start-channel to separate creation from execution, and 
   renaming shutdown channel to stop channel

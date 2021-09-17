@@ -25,6 +25,7 @@ provide additional insight into its design.
 - [Evaluating checks](#evaluating-checks)
     - [Synchronously evaluating a check](#synchronously-evaluating-a-check)
     - [Asynchronously evaluating a check](#asynchronously-evaluating-a-check)
+    - [Logging during check evaluation](#logging-during-check-evaluation)
     - [Checking if results are out-of-date](#working-with-results)
 - [Managing checks using a registry](#managing-checks-using-a-registry)
     - [Creating and populating a registry](#creating-and-populating-a-registry)
@@ -91,7 +92,7 @@ callback function:
   ...)
 ```
 
-All check functions must be non-blocking and must use the provided callback
+All check functions must be **non-blocking** and must use the provided callback
 function to communicate the result of their evaluation back to `salutem`. For
 example, if you are health checking an HTTP endpoint using a non-blocking HTTP
 client such as `http-kit`, the check function might look like the following:
@@ -130,14 +131,10 @@ the check function might look like the following:
 ```
 
 Check functions should also implement some form of timeout on calls that could
-block for a long time. If using a
-[maintenance pipeline](#starting-a-maintenance-pipeline), dependent on the type
-of the check, a check function could be called every interval which could result
-in resource exhaustion if the check function does not time out quickly enough.
-It may also make sense to implement some form of circuit breaker within the
-check function, potentially with exponential backoff. This is currently left up
-to the implementer of the check function but may be incorporated into `salutem`
-in the future.
+block for a long time to prevent resource exhaustion. It may also make sense to
+implement some form of circuit breaker within the check function, potentially
+with exponential backoff. This is currently left up to the implementer of the
+check function but may be incorporated into `salutem` in the future.
 
 ### Producing results
 
@@ -318,9 +315,9 @@ If the check requires something from a context map:
   (salutem/realtime-check :service/user-profile
     (fn [context callback-fn]
       (callback-fn
-        (salutem/healthy 
+        (salutem/healthy
           {:latency "73ms"
-           :caller (:caller context)})))
+           :caller  (:caller context)})))
     {:timeout (salutem/duration 5 :seconds)}))
 
 (salutem/evaluate user-profile-service-check
@@ -344,9 +341,9 @@ To evaluate a check asynchronously, pass a callback function:
       (future
         (Thread/sleep 300)
         (callback-fn
-          (salutem/healthy 
+          (salutem/healthy
             {:latency "373ms"
-             :caller (:caller context)}))))
+             :caller  (:caller context)}))))
     {:timeout (salutem/duration 5 :seconds)}))
 
 (salutem/evaluate user-profile-service-check
@@ -366,6 +363,48 @@ To evaluate a check asynchronously, pass a callback function:
 ;  :status :healthy
 ;  :evaluated-at #time/instant "2021-09-05T01:05:17.070Z"})
 ```
+
+### Logging during check evaluation
+
+It's also possible to produce logs during a check evaluation. If the provided
+context map includes a `:logger` entry with a
+[`cartus.core/Logger`](https://logicblocks.github.io/cartus/cartus.core.html#var-Logger)
+value, log events will be produced throughout the evaluation process. For
+example:
+
+```clojure
+(require '[salutem.core :as salutem])
+(require '[cartus.test :as cartus-test])
+
+(def logger (cartus-test/logger))
+
+(def check
+  (salutem/background-check :thing
+    (fn [_ callback-fn]
+      (callback-fn (salutem/healthy)))))
+
+(checks/evaluate check {:logger logger})
+
+(map 
+  (fn [event] 
+    (select-keys event [:type :context]))
+  (cartus-test/events logger))
+; =>
+; ({:type :salutem.core.checks/attempt.starting,
+;   :context {:trigger-id :ad-hoc, :check-name :thing}}
+;  {:type :salutem.core.checks/attempt.completed,
+;   :context {:trigger-id :ad-hoc,
+;             :check-name :thing,
+;             :result {:status :healthy,
+;                      :evaluated-at #time/instant"2021-09-17T10:20:55.469Z"}
+```
+
+The events that may be logged during evaluation are:
+
+- `:salutem.core.checks/attempt.starting{:trigger-id, :check-name}`
+- `:salutem.core.checks/attempt.threw-exception{:trigger-id, :check-name, :exception}`
+- `:salutem.core.checks/attempt.timed-out{:trigger-id, :check-name}`
+- `:salutem.core.checks/attempt.completed{:trigger-id, :check-name, :result}`
 
 ### Working with results
 
@@ -419,7 +458,7 @@ Checks can be added to the registry using [[salutem.core/with-check]]:
 ```
 
 Whilst mostly for internal use, it's also possible to cache results in the
-registry using [[salutem.core/with-cached-result]]. The result cache stores a 
+registry using [[salutem.core/with-cached-result]]. The result cache stores a
 single result per check, overwriting an existing result if present.
 
 ```clojure
@@ -469,9 +508,9 @@ Let's say we have the following registry:
 
 (def registry
   (-> (salutem/empty-registry)
-    (with-check user-profile-service-check)
-    (with-check search-service-check)
-    (with-cached-result search-service-check-name search-service-result)))
+    (salutem/with-check user-profile-service-check)
+    (salutem/with-check search-service-check)
+    (salutem/with-cached-result search-service-check-name search-service-result)))
 ```
 
 To find a check in the registry:
@@ -562,10 +601,10 @@ First, let's define a registry:
 
 (def registry
   (-> (salutem/empty-registry)
-    (with-check user-profile-service-check)
-    (with-check search-service-check)
-    (with-check database-check)
-    (with-cached-result search-service-check-name search-service-result)))
+    (salutem/with-check user-profile-service-check)
+    (salutem/with-check search-service-check)
+    (salutem/with-check database-check)
+    (salutem/with-cached-result search-service-check-name search-service-result)))
 ```
 
 Here we have three checks, one realtime check and two background checks. For one
@@ -611,8 +650,11 @@ To resolve all of the checks in the registry:
 ```
 
 Since both [[salutem.core/resolve-check]] and [[salutem.core/resolve-checks]]
-can result in evaluation of checks, they each have an arity that takes a 
-`context` map to be passed to the check functions if needed.
+can result in evaluation of checks, they each have an arity that takes a
+`context` map to be passed to the check functions if needed. If that context
+map includes a `:logger` entry with a 
+[cartus.core/Logger](https://logicblocks.github.io/cartus/cartus.core.html#var-Logger)
+value, log events will be produced throughout the resolution process.
 
 ## The maintenance pipeline
 
@@ -620,8 +662,8 @@ Whilst the registry alone is sufficient to manage realtime checks, whenever you
 have background checks, you need a mechanism to ensure that cached results in
 the registry are kept up-to-date. There are also cases where you may want
 realtime checks to be evaluated periodically, for example when using those
-checks to heart beat dependencies or when you are monitoring and alerting on
-the results of those checks.
+checks to heart beat dependencies or when you are monitoring and alerting on the
+results of those checks.
 
 To assist in keeping results up-to-date, `salutem` provides a maintenance
 pipeline that runs asynchronously, constantly detecting checks in the registry
@@ -633,8 +675,8 @@ number of independent processes and channels as depicted in the following
 diagram:
 
 <img src="images/maintenance-pipeline.png"
-  alt="Maintenance Pipeline"
-  style="width: 100%; max-width: 680px;"/>
+alt="Maintenance Pipeline"
+style="width: 100%; max-width: 680px;"/>
 
 The responsibility of each process is as follows:
 
@@ -665,9 +707,9 @@ To start a maintenance pipeline, do the following:
 
 (def registry-store
   (atom
-    (-> (health/empty-registry)
-      (health/with-check ...)
-      (health/with-check ...))))
+    (-> (salutem/empty-registry)
+      (salutem/with-check ...)
+      (salutem/with-check ...))))
 
 (def maintenance-pipeline
   (salutem/maintain registry-store))
@@ -692,8 +734,208 @@ To stop the maintenance pipeline, use [[salutem.core/shutdown]]:
 
 ### Customising the maintenance pipeline
 
-TODO
+[[salutem.core/maintain]] allows a number of configuration options to be
+provided via an option map:
+
+- `:context`: the arbitrary context map used by `salutem` in various places such
+  as when evaluating checks; defaults to an empty map;
+- `:interval`: the duration the pipeline should wait between refreshes of
+  results; defaults to 200 milliseconds;
+- `:notification-callback-fns`: a sequence of functions of check and result
+  which are called by the notifier in the pipeline whenever a new result is
+  available for a check; empty by default;
+- `:trigger-channel`: the channel on which the maintainer in the pipeline should
+  send trigger messages; defaults to a channel with a sliding buffer of length
+  1;
+- `:evaluation-channel`: the channel on which the refresher in the pipeline
+  should send messages to evaluate checks; defaults to a channel with a buffer
+  of size 10;
+- `:result-channel`: the channel on which the evaluator in the pipeline should
+  send result messages; defaults to a channel with a buffer of size 10 which is
+  multiplied into the `:updater-result-channel` and the
+  `:notifier-result-channel`;
+- `:skip-channel`: the channel on which the evaluator should send evaluation
+  messages that have been skipped because the checks are already in flight;
+  defaults to a sliding buffer of size 10;
+- `:updater-result-channel`: the channel which receives result messages that
+  should be cached in the registry by the updater in the pipeline; defaults to a
+  channel with a buffer of size 10;
+- `:notifier-result-channel`: the channel which receives result messages that
+  should be notified with new check results by the notifier in the pipeline;
+  defaults to a channel with a buffer of size 10;
+
+The following examples show how to use each of these configuration options. In
+each case, assume the following registry store is available:
+
+```clojure
+(require '[salutem.core :as salutem])
+
+(def registry-store
+  (atom
+    (-> (salutem/empty-registry)
+      (salutem/with-check ...)
+      (salutem/with-check ...))))
+```
+
+#### Passing a context map
+
+To provide a context map to be passed to check functions on check evaluation:
+
+```clojure
+(require '[salutem.core :as salutem])
+
+(def maintenance-pipeline
+  (salutem/maintain registry-store
+    {:context
+     {:database
+               {:dbtype   "postgresql"
+                :dbname   "service_db"
+                :host     "localhost"
+                :user     "user"
+                :password "secret"}
+      :service :order-service}}))
+```
+
+#### Changing the refresh interval
+
+To set a refresh interval of 500 milliseconds on a maintenance pipeline:
+
+```clojure
+(require '[salutem.core :as salutem])
+
+(def maintenance-pipeline
+  (salutem/maintain registry-store
+    {:interval (salutem/duration 500 :millis)}))
+```
+
+#### Getting notified when new results are available
+
+To add a notification callback to a maintenance pipeline:
+
+```clojure
+(require '[salutem.core :as salutem])
+(require '[cartus.core :as cartus-log])
+(require '[cartus.test :as cartus-test])
+
+(def logger (cartus-test/logger))
+
+(defn logging-notification-callback-fn [logger]
+  (fn [check result]
+    (cartus-log/debug logger ::check.result-available
+      {:check  check
+       :result result})))
+
+(def maintenance-pipeline
+  (salutem/maintain registry-store
+    {:notification-callback-fns
+     [(logging-notification-callback-fn logger)]}))
+```
+
+#### Using different channels in the maintenance pipeline
+
+Let's say we only want to evaluate background checks in the maintenance
+pipeline. We can achieve this by replacing the evaluation channel with a
+filtered alternative:
+
+```clojure
+(require '[salutem.core :as salutem])
+(require '[clojure.core.async :as async])
+
+(def evaluation-channel
+  (async/chan 10
+    (filter
+      (fn [message]
+        (salutem/background? (:check message))))))
+
+(def maintenance-pipeline
+  (salutem/maintain registry-store
+    {:evaluation-channel evaluation-channel}))
+```
 
 ### Enabling logging
 
-TODO
+Just as when evaluating checks and passing a logger in the context map, the
+maintenance pipeline can be initialised with a logger by including a `:logger`
+entry in the context map with a
+[cartus.core/Logger](https://logicblocks.github.io/cartus/cartus.core.html#var-Logger)
+value, such that log events will be produced for all activity in the maintenance
+pipeline. For example:
+
+```clojure
+(def logger (cartus-test/logger))
+
+(def check
+  (salutem/background-check :thing
+    (fn [_ callback-fn]
+      (callback-fn (salutem/healthy)))))
+
+(def registry-store
+  (atom
+    (salutem/with-check 
+      (salutem/empty-registry) 
+      check)))
+
+(def maintenance-pipeline
+  (salutem/maintain registry-store
+    {:context {:logger logger}}))
+
+; wait some time
+
+(salutem/shutdown maintenance-pipeline)
+
+(map 
+  (fn [event] 
+    (select-keys event [:type :context]))
+  (cartus-test/events logger))
+; =>
+; ({:type :salutem.core.maintenance/updater.starting, 
+;   :context {}}
+;  {:type :salutem.core.maintenance/notifier.starting, 
+;   :context {:callbacks 0}}
+;  {:type :salutem.core.maintenance/evaluator.starting, 
+;   :context {}}
+;  {:type :salutem.core.maintenance/refresher.starting, 
+;   :context {}}
+;  {:type :salutem.core.maintenance/maintainer.starting,
+;   :context {:interval #time/duration"PT0.2S"}}
+;  {:type :salutem.core.maintenance/maintainer.triggering,
+;   :context {:trigger-id 1}}
+;  {:type :salutem.core.maintenance/refresher.triggered, 
+;   :context {:trigger-id 1}}
+;  {:type :salutem.core.maintenance/refresher.evaluating,
+;   :context {:trigger-id 1, :check-name :thing}}
+;  {:type :salutem.core.maintenance/evaluator.holding,
+;   :context {:trigger-id 1, :check-name :thing}}
+;  {:type :salutem.core.maintenance/evaluator.evaluating,
+;   :context {:trigger-id 1, :check-name :thing}}
+;  {:type :salutem.core.checks/attempt.starting,
+;   :context {:trigger-id 1, :check-name :thing}}
+;  {:type :salutem.core.checks/attempt.completed,
+;   :context {:trigger-id 1,
+;             :check-name :thing,
+;             :result {:status :healthy,
+;                      :evaluated-at #time/instant"2021-09-17T11:05:46.261Z"}}}
+;  {:type :salutem.core.maintenance/evaluator.completing,
+;   :context {:trigger-id 1,
+;             :result {:status :healthy,
+;                      :evaluated-at #time/instant"2021-09-17T11:05:46.261Z"},
+;             :check-name :thing}}
+;  {:type :salutem.core.maintenance/updater.updating,
+;   :context {:trigger-id 1,
+;             :result {:status :healthy,
+;                      :evaluated-at #time/instant"2021-09-17T11:05:46.261Z"},
+;             :check-name :thing}}
+;  {:type :salutem.core.maintenance/maintainer.triggering,
+;   :context {:trigger-id 2}}
+;  ...
+;  {:type :salutem.core.maintenance/maintainer.stopped,
+;   :context {:triggers-sent 29}}
+;  {:type :salutem.core.maintenance/refresher.stopped, 
+;   :context {}}
+;  {:type :salutem.core.maintenance/evaluator.stopped, 
+;   :context {}}
+;  {:type :salutem.core.maintenance/notifier.stopped, 
+;   :context {}}
+;  {:type :salutem.core.maintenance/updater.stopped, 
+;   :context {}})
+```
