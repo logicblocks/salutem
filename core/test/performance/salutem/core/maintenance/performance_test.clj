@@ -94,6 +94,6 @@
     ; 1000 checks as defined above would take anywhere up to 100 seconds to run
     ; if they weren't running concurrently or in parallel
     (is (t/< (t/between epoch (t/now))
-          (t/new-duration 5 :seconds)))
+          (t/new-duration 7.5 :seconds)))
 
     (salutem/shutdown maintenance-pipeline)))
