@@ -939,3 +939,29 @@ pipeline. For example:
 ;  {:type :salutem.core.maintenance/updater.stopped, 
 ;   :context {}})
 ```
+
+The events that may be logged during maintenance are:
+
+- `:salutem.core.maintenance/maintainer.starting{:interval}`
+- `:salutem.core.maintenance/maintainer.triggering{:trigger-id}`
+- `:salutem.core.maintenance/maintainer.stopped{:triggers-sent}`
+- `:salutem.core.maintenance/refresher.starting{:interval}`
+- `:salutem.core.maintenance/refresher.triggered{:trigger-id}`
+- `:salutem.core.maintenance/refresher.evaluating{:trigger-id, :check-name}`
+- `:salutem.core.maintenance/refresher.stopped{}`
+- `:salutem.core.maintenance/evaluator.starting{}`
+- `:salutem.core.maintenance/evaluator.holding{:trigger-id, :check-name}`
+- `:salutem.core.maintenance/evaluator.evaluating{:trigger-id, :check-name}`
+- `:salutem.core.checks/attempt.starting{:trigger-id, :check-name}`
+- `:salutem.core.checks/attempt.threw-exception{:trigger-id, :check-name, :exception}`
+- `:salutem.core.checks/attempt.timed-out{:trigger-id, :check-name}`
+- `:salutem.core.checks/attempt.completed{:trigger-id, :check-name, :result}`
+- `:salutem.core.maintenance/evaluator.skipping{:trigger-id, :check-name}`
+- `:salutem.core.maintenance/evaluator.completing{:trigger-id, :check-name, :result}`
+- `:salutem.core.maintenance/evaluator.stopped{}`
+- `:salutem.core.maintenance/updater.starting{}`
+- `:salutem.core.maintenance/updater.updating{:trigger-id, :check-name, :result}`
+- `:salutem.core.maintenance/updater.stopped{}`
+- `:salutem.core.maintenance/notifier.starting{}`
+- `:salutem.core.maintenance/notifier.notifying{:trigger-id, :check-name, :result, :callback}`
+- `:salutem.core.maintenance/notifier.stopped{}`
