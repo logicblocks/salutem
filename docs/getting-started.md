@@ -42,7 +42,7 @@ provide additional insight into its design.
 Add the following to your `project.clj` file:
 
 ```clojure
-[io.logicblocks/salutem.core "0.1.1"]
+[io.logicblocks/salutem.core "0.1.3"]
 ```
 
 ## Definitions
