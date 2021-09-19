@@ -1,7 +1,6 @@
 ToDo
 ====
 
-* Parallelise `resolve-checks`
 * Allow async versions of `resolve-check` and `resolve-checks`
 * Convert keys to namespaced where relevant (e.g., `:evaluated-at`)
 * Document: 

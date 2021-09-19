@@ -2,7 +2,7 @@
   "Provides constructors, query functions and resolution functions for
    registries."
   (:require
-   [tick.alpha.api :as t]
+   [clojure.core.async :as async]
 
    [salutem.core.checks :as checks]
    [salutem.core.results :as results]))
@@ -59,6 +59,9 @@
       #(results/outdated? (find-cached-result registry (:name %)) %)
       (all-checks registry))))
 
+(defn- requires-re-evaluation? [check result]
+  (or (checks/realtime? check) (not result)))
+
 (defn resolve-check
   "Resolves a result for the check of the given name in the registry.
 
@@ -77,7 +80,7 @@
   ([registry check-name context]
    (let [check (find-check registry check-name)
          result (find-cached-result registry check-name)]
-     (if (or (checks/realtime? check) (not result))
+     (if (requires-re-evaluation? check result)
        (checks/evaluate check context)
        result))))
 
@@ -93,8 +96,33 @@
   ([registry]
    (resolve-checks registry {}))
   ([registry context]
-   (into {}
-     (map
-       (fn [check-name]
-         [check-name (resolve-check registry check-name context)])
-       (check-names registry)))))
+   (let [{:keys [requiring-re-evaluation resolved-from-cache]}
+         (reduce
+           (fn [accumulator check-name]
+             (let [check (find-check registry check-name)
+                   result (find-cached-result registry check-name)]
+               (apply update-in accumulator
+                 (if (requires-re-evaluation? check result)
+                   [[:requiring-re-evaluation] conj check]
+                   [[:resolved-from-cache] assoc check-name result]))))
+           {:requiring-re-evaluation []
+            :resolved-from-cache     {}}
+           (check-names registry))
+
+         re-evaluation-promises
+         (map
+           (fn [check]
+             (let [promise (promise)]
+               (checks/evaluate check context
+                 (fn [result]
+                   (deliver promise [(:name check) result])))
+               promise))
+           requiring-re-evaluation)
+
+         resolved-through-re-evaluation
+         (into {} (map deref re-evaluation-promises))]
+     (merge
+       resolved-from-cache
+       resolved-through-re-evaluation))))
+
+(update-in [[1] [2 3]] [0] conj 3)
