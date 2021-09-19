@@ -33,7 +33,7 @@
 
         results (salutem/resolve-checks registry)]
 
-    (is (= #{:healthy} (into #{} (map :status (vals results)))))
+    (is (= #{:healthy} (into #{} (map :salutem/status (vals results)))))
 
     ; 250 realtime checks as defined above running sequentially would take
     ; anywhere up to 50 seconds

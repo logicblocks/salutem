@@ -14,7 +14,8 @@
    [salutem.core.maintenance :as maintenance]
    [salutem.core.registry :as registry]
 
-   [salutem.test.support.async :as tsa]))
+   [salutem.test.support.async :as tsa]
+   [salutem.test.support.time :as tst]))
 
 (deftest maintainer-logs-event-on-start
   (let [logger (cartus-test/logger)
@@ -196,10 +197,10 @@
         check
         (checks/background-check check-name
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:time-to-re-evaluation (time/duration 30 :seconds)})
+          {:salutem/time-to-re-evaluation (time/duration 30 :seconds)})
         outdated-result
         (results/healthy
-          {:evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
+          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
 
         registry
         (-> (registry/empty-registry)
@@ -236,25 +237,25 @@
         check-1
         (checks/background-check check-1-name
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:time-to-re-evaluation (time/duration 30 :seconds)})
+          {:salutem/time-to-re-evaluation (time/duration 30 :seconds)})
         check-2
         (checks/background-check check-2-name
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:time-to-re-evaluation (time/duration 1 :minutes)})
+          {:salutem/time-to-re-evaluation (time/duration 1 :minutes)})
         check-3
         (checks/background-check check-3-name
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:time-to-re-evaluation (time/duration 45 :seconds)})
+          {:salutem/time-to-re-evaluation (time/duration 45 :seconds)})
 
         check-1-outdated-result
         (results/healthy
-          {:evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
+          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
         check-2-current-result
         (results/healthy
-          {:evaluated-at (t/- (t/now) (t/new-duration 40 :seconds))})
+          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 40 :seconds))})
         check-3-outdated-result
         (results/healthy
-          {:evaluated-at (t/- (t/now) (t/new-duration 55 :seconds))})
+          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 55 :seconds))})
 
         registry
         (-> (registry/empty-registry)
@@ -294,25 +295,25 @@
         check-1
         (checks/background-check check-1-name
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:time-to-re-evaluation (time/duration 30 :seconds)})
+          {:salutem/time-to-re-evaluation (time/duration 30 :seconds)})
         check-2
         (checks/background-check check-2-name
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:time-to-re-evaluation (time/duration 1 :minutes)})
+          {:salutem/time-to-re-evaluation (time/duration 1 :minutes)})
         check-3
         (checks/background-check check-3-name
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:time-to-re-evaluation (time/duration 45 :seconds)})
+          {:salutem/time-to-re-evaluation (time/duration 45 :seconds)})
 
         check-1-outdated-result
         (results/healthy
-          {:evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
+          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
         check-2-current-result
         (results/healthy
-          {:evaluated-at (t/- (t/now) (t/new-duration 40 :seconds))})
+          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 40 :seconds))})
         check-3-outdated-result
         (results/healthy
-          {:evaluated-at (t/- (t/now) (t/new-duration 55 :seconds))})
+          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 55 :seconds))})
 
         registry
         (-> (registry/empty-registry)
@@ -355,10 +356,10 @@
         check
         (checks/background-check check-name
           (fn [_ result-cb] (result-cb (results/healthy)))
-          {:time-to-re-evaluation (time/duration 30 :seconds)})
+          {:salutem/time-to-re-evaluation (time/duration 30 :seconds)})
         outdated-result
         (results/healthy
-          {:evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
+          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
 
         registry
         (-> (registry/empty-registry)
@@ -637,7 +638,7 @@
 
     (letfn [(find-result [results name]
               (->> results
-                (filter #(= (get-in % [:check :name]) name))
+                (filter #(= (get-in % [:check :salutem/name]) name))
                 first
                 :result))]
       (let [results (tsa/<!!-or-timeout
@@ -839,7 +840,7 @@
                     (Thread/sleep 100)
                     (result-cb
                       (results/healthy))))
-                {:timeout (time/duration 50 :millis)})
+                {:salutem/timeout (time/duration 50 :millis)})
 
         trigger-id 1
 
@@ -871,7 +872,7 @@
                     (Thread/sleep 100)
                     (result-cb
                       (results/healthy))))
-                {:timeout (time/duration 50 :millis)})
+                {:salutem/timeout (time/duration 50 :millis)})
 
         trigger-id 1
 
@@ -1522,7 +1523,7 @@
                     (results/healthy
                       (merge (select-keys context [:some])
                         {:invocation-count @check-count}))))
-                {:time-to-re-evaluation (time/duration 25 :millis)})
+                {:salutem/time-to-re-evaluation (time/duration 25 :millis)})
 
         registry (-> (registry/empty-registry)
                    (registry/with-check check))
@@ -1539,13 +1540,13 @@
 
     (async/<!! (async/timeout 190))
 
-    (letfn [(time-free [result]
-              (dissoc result :evaluated-at))]
-      (is (=
-            (time-free (registry/find-cached-result @registry-store :thing))
-            (time-free (results/healthy
-                         (merge context
-                           {:invocation-count 3}))))))
+    (is (=
+          (tst/without-evaluation-date-time
+            (registry/find-cached-result @registry-store :thing))
+          (tst/without-evaluation-date-time
+            (results/healthy
+              (merge context
+                {:invocation-count 3})))))
 
     (maintenance/shutdown maintenance-pipeline)))
 

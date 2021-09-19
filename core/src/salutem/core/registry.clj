@@ -2,8 +2,6 @@
   "Provides constructors, query functions and resolution functions for
    registries."
   (:require
-   [clojure.core.async :as async]
-
    [salutem.core.checks :as checks]
    [salutem.core.results :as results]))
 
@@ -11,41 +9,41 @@
   "Constructs an empty registry which can be populated using [[with-check]] and
    [[with-cached-result]]."
   []
-  {:checks         {}
-   :cached-results {}})
+  {:salutem/checks         {}
+   :salutem/cached-results {}})
 
 (defn with-check
   "Adds the check to the registry, returning a new registry."
   [registry check]
-  (update-in registry [:checks] assoc (:name check) check))
+  (update-in registry [:salutem/checks] assoc (:salutem/name check) check))
 
 (defn with-cached-result
   "Adds the result for the check with the given name to the registry,
    returning a new registry."
   [registry check-name result]
-  (update-in registry [:cached-results] assoc check-name result))
+  (update-in registry [:salutem/cached-results] assoc check-name result))
 
 (defn find-check
   "Finds the check with the given name in the registry. Returns `nil` if no
    check can be found."
   [registry check-name]
-  (get-in registry [:checks check-name]))
+  (get-in registry [:salutem/checks check-name]))
 
 (defn find-cached-result
   "Finds the cached result for the check with the given name in the registry.
    Returns `nil` if no result can be found or if the check does not exist."
   [registry check-name]
-  (get-in registry [:cached-results check-name]))
+  (get-in registry [:salutem/cached-results check-name]))
 
 (defn check-names
   "Returns the set of check names present in the registry."
   [registry]
-  (set (keys (:checks registry))))
+  (set (keys (:salutem/checks registry))))
 
 (defn all-checks
   "Returns the set of checks present in the registry."
   [registry]
-  (set (vals (:checks registry))))
+  (set (vals (:salutem/checks registry))))
 
 (defn outdated-checks
   "Returns the set of checks that are currently outdated in the registry based
@@ -56,7 +54,7 @@
   [registry]
   (set
     (filter
-      #(results/outdated? (find-cached-result registry (:name %)) %)
+      #(results/outdated? (find-cached-result registry (:salutem/name %)) %)
       (all-checks registry))))
 
 (defn- requires-re-evaluation? [check result]
@@ -135,7 +133,7 @@
              (let [promise (promise)]
                (checks/evaluate check context
                  (fn [result]
-                   (deliver promise [(:name check) result])))
+                   (deliver promise [(:salutem/name check) result])))
                promise))
            requiring-re-evaluation)]
      (future

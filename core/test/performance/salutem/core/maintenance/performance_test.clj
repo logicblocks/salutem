@@ -24,7 +24,7 @@
                (future
                  (Thread/sleep 200)
                  (result-cb (salutem/result :never-returned))))
-             {:timeout (salutem/duration 100 :millis)})
+             {:salutem/timeout (salutem/duration 100 :millis)})
           (range 1 251))
         exception-background-checks
         (map
@@ -83,7 +83,7 @@
               (let [category
                     (or
                       (:salutem/reason result)
-                      (:status result))]
+                      (:salutem/status result))]
                 (update-in acc [category] inc)))
             {:timed-out       0
              :threw-exception 0

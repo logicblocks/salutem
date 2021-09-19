@@ -48,11 +48,11 @@ Add the following to your `project.clj` file:
       (salutem/with-check
         (salutem/realtime-check :database
           database-health-check-fn
-          {:timeout (salutem/duration 5 :seconds)}))
+          {:salutem/timeout (salutem/duration 5 :seconds)}))
       (salutem/with-check
         (salutem/background-check :external-service
           external-service-health-check-fn
-          {:time-to-re-evaluation (salutem/duration 30 :seconds)})))))
+          {:salutem/time-to-re-evaluation (salutem/duration 30 :seconds)})))))
 
 (def maintainer
   (salutem/maintain registry-atom))
@@ -60,24 +60,24 @@ Add the following to your `project.clj` file:
 (salutem/resolve-checks @registry-atom)
 ; => {:database
 ;      {:error :connection-failed
-;       :status :unhealthy
-;       :evaluated-at #time/instant"2021-08-18T23:39:29.234Z"}
+;       :salutem/status :unhealthy
+;       :salutem/evaluated-at #time/instant"2021-08-18T23:39:29.234Z"}
 ;     :external-service 
 ;      {:latency-ms 200,
-;       :status :healthy,
-;       :evaluated-at #time/instant"2021-08-18T23:39:10.383Z"}}
+;       :salutem/status :healthy,
+;       :salutem/evaluated-at #time/instant"2021-08-18T23:39:10.383Z"}}
 
 ; ...5 seconds later...
 
 (salutem/resolve-checks @registry-atom)
 ; => {:database
 ;      {:error :connection-failed
-;       :status :unhealthy
-;       :evaluated-at #time/instant"2021-08-18T23:39:34.234Z"}
+;       :salutem/status :unhealthy
+;       :salutem/evaluated-at #time/instant"2021-08-18T23:39:34.234Z"}
 ;     :external-service 
 ;      {:latency-ms 200,
-;       :status :healthy,
-;       :evaluated-at #time/instant"2021-08-18T23:39:10.383Z"}}
+;       :salutem/status :healthy,
+;       :salutem/evaluated-at #time/instant"2021-08-18T23:39:10.383Z"}}
 
 (salutem/shutdown maintainer)
 ```

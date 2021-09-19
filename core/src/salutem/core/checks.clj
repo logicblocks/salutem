@@ -14,14 +14,14 @@
   ([check-name check-fn]
    (check check-name check-fn {}))
   ([check-name check-fn
-    {:keys [timeout]
+    {:keys [salutem/timeout]
      :or   {timeout (t/new-duration 10 :seconds)}
      :as   opts}]
    (merge
      opts
-     {:name     check-name
-      :check-fn check-fn
-      :timeout  timeout})))
+     {:salutem/name     check-name
+      :salutem/check-fn check-fn
+      :salutem/timeout  timeout})))
 
 (defn background-check
   "Constructs a background check with the provided name and check function.
@@ -44,12 +44,15 @@
        with the result of the check to signal the check is complete; note, check
        functions _must_ be non-blocking.
      - `opts`: an optional map of additional options for the check, containing:
-       - `:timeout`: a [[salutem.time/duration]] representing the amount of time
-         to wait for the check to complete before considering it failed,
-         defaulting to 10 seconds
-       - `:time-to-re-evaluation`: a [[salutem.time/duration]] representing the
-         time to wait after a check is evaluated before attempting to
-         re-evaluate it, defaulting to 10 seconds.
+       - `:salutem/timeout`: a [[salutem.time/duration]] representing the amount
+         of time to wait for the check to complete before considering it failed,
+         defaulting to 10 seconds.
+       - `:salutem/time-to-re-evaluation`: a [[salutem.time/duration]]
+         representing the time to wait after a check is evaluated before
+         attempting to re-evaluate it, defaulting to 10 seconds.
+
+   Any extra entries provided in the `opts` map are retained on the check for
+   future use.
 
    Note that a result for a background check may live for longer than the
    time to re-evaluation since evaluation takes time and the result will
@@ -61,14 +64,14 @@
   ([check-name check-fn opts]
    (let [time-to-re-evaluation
          (or
-           (:time-to-re-evaluation opts)
-           (:ttl opts)
+           (:salutem/time-to-re-evaluation opts)
+           (:salutem/ttl opts)
            (t/new-duration 10 :seconds))]
      (check check-name check-fn
        (merge
-         {:time-to-re-evaluation time-to-re-evaluation}
-         (dissoc opts :time-to-re-evaluation :ttl)
-         {:type :background})))))
+         {:salutem/time-to-re-evaluation time-to-re-evaluation}
+         (dissoc opts :salutem/time-to-re-evaluation :salutem/ttl)
+         {:salutem/type :background})))))
 
 (defn realtime-check
   "Constructs a realtime check with the provided name and check function.
@@ -88,37 +91,40 @@
        with the result fo the check to signal the check is complete; note, check
        functions _must_ be non-blocking.
      - `opts`: an optional map of additional options for the check, containing:
-       - `:timeout`: a [[salutem.time/duration]] representing the amount of time
-         to wait for the check to complete before considering it failed,
-         defaulting to 10 seconds"
+       - `:salutem/timeout`: a [[salutem.time/duration]] representing the amount
+         of time to wait for the check to complete before considering it failed,
+         defaulting to 10 seconds.
+
+   Any extra entries provided in the `opts` map are retained on the check for
+   future use."
   ([check-name check-fn]
    (realtime-check check-name check-fn {}))
   ([check-name check-fn opts]
    (check check-name check-fn
      (merge
        opts
-       {:type :realtime}))))
+       {:salutem/type :realtime}))))
 
 (defn background?
   "Returns `true` if the provided check is a background check, `false`
    otherwise."
   [check]
-  (= (:type check) :background))
+  (= (:salutem/type check) :background))
 
 (defn realtime?
   "Returns `true` if the provided check is a realtime check, `false`
    otherwise."
   [check]
-  (= (:type check) :realtime))
+  (= (:salutem/type check) :realtime))
 
 (defn attempt
   ([dependencies trigger-id check context]
    (attempt dependencies trigger-id check context (async/chan 1)))
   ([dependencies trigger-id check context result-channel]
    (let [logger (or (:logger dependencies) (cartus-null/logger))
-         check-name (:name check)]
+         check-name (:salutem/name check)]
      (async/go
-       (let [{:keys [check-fn timeout]} check
+       (let [{:keys [salutem/check-fn salutem/timeout]} check
              callback-channel (async/chan)
              exception-channel (async/chan 1)]
          (log/info logger ::attempt.starting

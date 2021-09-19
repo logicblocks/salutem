@@ -60,7 +60,7 @@
              (doseq [check (registry/outdated-checks registry)]
                (log/info logger ::refresher.evaluating
                  {:trigger-id trigger-id
-                  :check-name (:name check)})
+                  :check-name (:salutem/name check)})
                (async/>! evaluation-channel
                  {:trigger-id trigger-id
                   :check      check
@@ -166,7 +166,7 @@
 
            (evaluation-message? message channel evaluation-channel)
            (let [{:keys [check context trigger-id] :or {context {}}} message
-                 check-name (:name check)]
+                 check-name (:salutem/name check)]
              (log/info logger ::evaluator.holding
                {:trigger-id trigger-id
                 :check-name check-name})
@@ -189,7 +189,7 @@
 
            :else
            (let [{:keys [trigger-id check result]} message
-                 check-name (:name check)]
+                 check-name (:salutem/name check)]
              (log/info logger ::evaluator.completing
                {:trigger-id trigger-id
                 :check-name check-name
@@ -208,7 +208,7 @@
       (let [{:keys [check result trigger-id]
              :as   result-message} (async/<! result-channel)]
         (if result-message
-          (let [check-name (:name check)]
+          (let [check-name (:salutem/name check)]
             (log/info logger ::updater.updating
               {:trigger-id trigger-id
                :check-name check-name
@@ -231,7 +231,7 @@
             (doseq [[index callback] (map-indexed vector callbacks)]
               (log/info logger ::notifier.notifying
                 {:trigger-id trigger-id
-                 :check-name (:name check)
+                 :check-name (:salutem/name check)
                  :result     result
                  :callback   (inc index)})
               (callback check result))

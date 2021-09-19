@@ -7,22 +7,24 @@
   "Constructs a result with the provided `status`.
 
    The optional map of extra data is stored with the result for future use.
-   Unless overridden in the extra data map, an `:evaluated-at` field is added to
-   the result, set to the current date time in the system default time zone."
+   Unless overridden in the extra data map, an `:salutem/evaluated-at` field is
+   added to the result, set to the current date time in the system default time
+   zone."
   ([status] (result status {}))
-  ([status {:keys [evaluated-at]
+  ([status {:keys [salutem/evaluated-at]
             :or   {evaluated-at (t/now)}
             :as   extra-data}]
    (merge extra-data
-     {:status       status
-      :evaluated-at evaluated-at})))
+     {:salutem/status       status
+      :salutem/evaluated-at evaluated-at})))
 
 (defn healthy
   "Constructs a healthy result.
 
    The optional map of extra data is stored with the result for future use.
-   Unless overridden in the extra data map, an `:evaluated-at` field is added to
-   the result, set to the current date time in the system default time zone."
+   Unless overridden in the extra data map, an `:salutem/evaluated-at` field is
+   added to the result, set to the current date time in the system default time
+   zone."
   ([] (healthy {}))
   ([extra-data]
    (result :healthy extra-data)))
@@ -31,8 +33,9 @@
   "Constructs an unhealthy result.
 
    The optional map of extra data is stored with the result for future use.
-   Unless overridden in the extra data map, an `:evaluated-at` field is added to
-   the result, set to the current date time in the system default time zone."
+   Unless overridden in the extra data map, an `:salutem/evaluated-at` field is
+   added to the result, set to the current date time in the system default time
+   zone."
   ([] (unhealthy {}))
   ([extra-date]
    (result :unhealthy extra-date)))
@@ -41,13 +44,13 @@
   "Returns `true` if the result has a `:healthy` status, `false`
    otherwise."
   [result]
-  (= (:status result) :healthy))
+  (= (:salutem/status result) :healthy))
 
 (defn unhealthy?
   "Returns `true` if the result has an `:unhealthy` status, `false`
    otherwise."
   [result]
-  (= (:status result) :unhealthy))
+  (= (:salutem/status result) :unhealthy))
 
 (defn outdated?
   "Returns `true` if the result of the check is outdated, `false`
@@ -65,7 +68,7 @@
    (outdated? result check (t/now)))
   ([result check relative-to]
    (or
-     (= (:type check) :realtime)
+     (= (:salutem/type check) :realtime)
      (nil? result)
-     (t/< (:evaluated-at result)
-       (t/- relative-to (:time-to-re-evaluation check))))))
+     (t/< (:salutem/evaluated-at result)
+       (t/- relative-to (:salutem/time-to-re-evaluation check))))))

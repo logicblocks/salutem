@@ -28,46 +28,49 @@
         check-fn (fn [_ result-cb]
                    (result-cb (results/healthy)))
         check (checks/background-check check-name check-fn)]
-    (is (= (:name check) check-name))
-    (is (= (:check-fn check) check-fn))))
+    (is (= (:salutem/name check) check-name))
+    (is (= (:salutem/check-fn check) check-fn))))
 
 (deftest background-check-uses-10-second-timeout-by-default
   (let [check-name :thing
         check-fn (fn [_ result-cb]
                    (result-cb (results/healthy)))
         check (checks/background-check check-name check-fn)]
-    (is (= (:timeout check) (time/duration 10 :seconds)))))
+    (is (= (:salutem/timeout check) (time/duration 10 :seconds)))))
 
 (deftest background-check-uses-10-second-time-to-re-evaluation-by-default
   (let [check-name :thing
         check-fn (fn [_ result-cb]
                    (result-cb (results/healthy)))
         check (checks/background-check check-name check-fn)]
-    (is (= (:time-to-re-evaluation check) (time/duration 10 :seconds)))))
+    (is (= (:salutem/time-to-re-evaluation check)
+          (time/duration 10 :seconds)))))
 
 (deftest background-check-uses-supplied-timeout-when-provided
   (let [check-timeout (time/duration 5 :seconds)
         check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:timeout check-timeout})]
-    (is (= (:timeout check) check-timeout))))
+                {:salutem/timeout check-timeout})]
+    (is (= (:salutem/timeout check) check-timeout))))
 
 (deftest background-check-uses-supplied-time-to-re-evaluation-when-provided
   (let [check-time-to-re-evaluation (time/duration 5 :seconds)
         check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:time-to-re-evaluation check-time-to-re-evaluation})]
-    (is (= (:time-to-re-evaluation check) check-time-to-re-evaluation))))
+                {:salutem/time-to-re-evaluation check-time-to-re-evaluation})]
+    (is (= (:salutem/time-to-re-evaluation check)
+          check-time-to-re-evaluation))))
 
 (deftest background-check-uses-deprecated-ttl-as-time-to-re-evaluation
   (let [check-time-to-re-evaluation (time/duration 5 :seconds)
         check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:ttl check-time-to-re-evaluation})]
-    (is (= (:time-to-re-evaluation check) check-time-to-re-evaluation))))
+                {:salutem/ttl check-time-to-re-evaluation})]
+    (is (= (:salutem/time-to-re-evaluation check)
+          check-time-to-re-evaluation))))
 
 (deftest realtime-check-creates-realtime-check
   (let [check-name :thing
@@ -82,23 +85,23 @@
         check-fn (fn [_ result-cb]
                    (result-cb (results/healthy)))
         check (checks/realtime-check check-name check-fn)]
-    (is (= (:name check) check-name))
-    (is (= (:check-fn check) check-fn))))
+    (is (= (:salutem/name check) check-name))
+    (is (= (:salutem/check-fn check) check-fn))))
 
 (deftest realtime-check-uses-10-second-timeout-by-default
   (let [check-name :thing
         check-fn (fn [_ result-cb]
                    (result-cb (results/healthy)))
         check (checks/realtime-check check-name check-fn)]
-    (is (= (:timeout check) (time/duration 10 :seconds)))))
+    (is (= (:salutem/timeout check) (time/duration 10 :seconds)))))
 
 (deftest realtime-check-uses-supplied-timeout-when-provided
   (let [check-timeout (time/duration 5 :seconds)
         check (checks/realtime-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:timeout check-timeout})]
-    (is (= (:timeout check) check-timeout))))
+                {:salutem/timeout check-timeout})]
+    (is (= (:salutem/timeout check) check-timeout))))
 
 (deftest attempt-executes-check-function-putting-result-message-to-channel
   (let [dependencies {}
@@ -162,7 +165,7 @@
                     (result-cb
                       (results/healthy
                         {:correlation-id (data/random-uuid)}))))
-                {:timeout check-timeout})]
+                {:salutem/timeout check-timeout})]
     (checks/attempt dependencies trigger-id check context result-channel)
 
     (let [result-message (tsa/<!!-or-timeout result-channel
@@ -261,7 +264,7 @@
                     (result-cb
                       (results/healthy
                         {:correlation-id (data/random-uuid)}))))
-                {:timeout check-timeout})]
+                {:salutem/timeout check-timeout})]
     (checks/attempt dependencies trigger-id check context result-channel)
 
     (tsa/<!!-or-timeout result-channel
@@ -298,48 +301,44 @@
            :type    :salutem.core.checks/attempt.threw-exception}))))
 
 (deftest evaluate-evaluates-check-returning-result
-  (let [latency (t/new-duration 356 :millis)
-        evaluated-at (t/now)
+  (let [unique-id (data/random-uuid)
+
         check (checks/realtime-check :thing
                 (fn [_ result-cb]
                   (result-cb
-                    (results/healthy
-                      {:latency      latency
-                       :evaluated-at evaluated-at}))))]
-    (is (= (checks/evaluate check)
-          (results/healthy
-            {:latency      latency
-             :evaluated-at evaluated-at})))))
+                    (results/healthy {:unique-id unique-id}))))]
+    (is (= (tst/without-evaluation-date-time
+             (checks/evaluate check))
+          (tst/without-evaluation-date-time
+            (results/healthy {:unique-id unique-id}))))))
 
 (deftest evaluate-passes-context-map-to-check-function-during-evaluation
-  (let [latency (t/new-duration 356 :millis)
-        evaluated-at (t/now)
+  (let [unique-id (data/random-uuid)
+
         check (checks/realtime-check :thing
                 (fn [context result-cb]
                   (result-cb
                     (results/healthy
-                      {:caller       (:caller context)
-                       :latency      latency
-                       :evaluated-at evaluated-at}))))]
-    (is (= (checks/evaluate check {:caller :thing-consumer})
-          (results/healthy
-            {:caller       :thing-consumer
-             :latency      latency
-             :evaluated-at evaluated-at})))))
+                      {:caller    (:caller context)
+                       :unique-id unique-id}))))]
+    (is (= (tst/without-evaluation-date-time
+             (checks/evaluate check {:caller :thing-consumer}))
+          (tst/without-evaluation-date-time
+            (results/healthy
+              {:caller    :thing-consumer
+               :unique-id unique-id}))))))
 
 (deftest evaluate-evaluates-asynchronously-when-passed-callback
   (let [context {:caller :thing-consumer}
 
-        latency (t/new-duration 356 :millis)
-        evaluated-at (t/now)
+        unique-id (data/random-uuid)
 
         check (checks/realtime-check :thing
                 (fn [context result-cb]
                   (result-cb
                     (results/healthy
-                      {:caller       (:caller context)
-                       :latency      latency
-                       :evaluated-at evaluated-at}))))
+                      {:caller    (:caller context)
+                       :unique-id unique-id}))))
 
         result-atom (atom nil)
         callback-fn (fn [result]
@@ -348,11 +347,11 @@
 
     (loop [attempts 1]
       (if (not (nil? @result-atom))
-        (is (= @result-atom
-              (results/healthy
-                {:caller       :thing-consumer
-                 :latency      latency
-                 :evaluated-at evaluated-at})))
+        (is (= (tst/without-evaluation-date-time @result-atom)
+              (tst/without-evaluation-date-time
+                (results/healthy
+                  {:caller    :thing-consumer
+                   :unique-id unique-id}))))
         (if (< attempts 5)
           (do
             (async/<!! (async/timeout 25))

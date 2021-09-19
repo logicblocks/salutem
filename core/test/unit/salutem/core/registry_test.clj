@@ -11,7 +11,8 @@
    [salutem.core.time :as time]
    [salutem.core.checks :as checks]
    [salutem.core.results :as results]
-   [salutem.core.registry :as registry]))
+   [salutem.core.registry :as registry]
+   [salutem.test.support.time :as tst]))
 
 (deftest with-check-adds-single-check-to-registry
   (let [check (checks/realtime-check :thing
@@ -65,18 +66,18 @@
         check-1 (checks/background-check check-1-name
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
-                  {:time-to-re-evaluation (time/duration 30 :seconds)})
+                  {:salutem/time-to-re-evaluation (time/duration 30 :seconds)})
         check-2 (checks/background-check check-2-name
                   (fn [_ result-cb]
                     (result-cb (results/unhealthy)))
-                  {:time-to-re-evaluation (time/duration 5 :minutes)})
+                  {:salutem/time-to-re-evaluation (time/duration 5 :minutes)})
 
         outdated-check-1-result
         (results/healthy
-          {:evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
+          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
         current-check-2-result
         (results/healthy
-          {:evaluated-at (t/- (t/now) (t/new-duration 10 :seconds))})
+          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 10 :seconds))})
 
         registry
         (-> (registry/empty-registry)
@@ -96,25 +97,25 @@
         check-1 (checks/background-check check-1-name
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
-                  {:time-to-re-evaluation (time/duration 30 :seconds)})
+                  {:salutem/time-to-re-evaluation (time/duration 30 :seconds)})
         check-2 (checks/background-check check-2-name
                   (fn [_ result-cb]
                     (result-cb (results/unhealthy)))
-                  {:time-to-re-evaluation (time/duration 5 :minutes)})
+                  {:salutem/time-to-re-evaluation (time/duration 5 :minutes)})
         check-3 (checks/background-check check-3-name
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
-                  {:time-to-re-evaluation (time/duration 1 :minutes)})
+                  {:salutem/time-to-re-evaluation (time/duration 1 :minutes)})
 
         outdated-check-1-result
         (results/healthy
-          {:evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
+          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
         current-check-2-result
         (results/healthy
-          {:evaluated-at (t/- (t/now) (t/new-duration 10 :seconds))})
+          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 10 :seconds))})
         outdated-check-3-result
         (results/healthy
-          {:evaluated-at (t/- (t/now) (t/new-duration 2 :minutes))})
+          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 2 :minutes))})
 
         registry
         (-> (registry/empty-registry)
@@ -136,19 +137,19 @@
         check-1 (checks/background-check check-1-name
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
-                  {:time-to-re-evaluation (time/duration 30 :seconds)})
+                  {:salutem/time-to-re-evaluation (time/duration 30 :seconds)})
         check-2 (checks/background-check check-2-name
                   (fn [_ result-cb]
                     (result-cb (results/unhealthy)))
-                  {:time-to-re-evaluation (time/duration 5 :minutes)})
+                  {:salutem/time-to-re-evaluation (time/duration 5 :minutes)})
         check-3 (checks/background-check check-3-name
                   (fn [_ result-cb]
                     (result-cb (results/healthy)))
-                  {:time-to-re-evaluation (time/duration 1 :minutes)})
+                  {:salutem/time-to-re-evaluation (time/duration 1 :minutes)})
 
         current-check-2-result
         (results/healthy
-          {:evaluated-at (t/- (t/now) (t/new-duration 10 :seconds))})
+          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 10 :seconds))})
 
         registry
         (-> (registry/empty-registry)
@@ -174,8 +175,8 @@
     (is (results/healthy? resolved-result-1))
     (is (results/healthy? resolved-result-2))
     (is (t/>
-          (:evaluated-at resolved-result-2)
-          (:evaluated-at resolved-result-1)))))
+          (:salutem/evaluated-at resolved-result-2)
+          (:salutem/evaluated-at resolved-result-1)))))
 
 (deftest resolve-check-evaluates-background-check-when-no-cached-result
   (let [check-fn (spy/spy
@@ -205,16 +206,14 @@
   resolve-check-resolves-realtime-check-asynchronously-when-passed-callback
   (let [context {:caller :thing-consumer}
 
-        latency (t/new-duration 356 :millis)
-        evaluated-at (t/now)
+        unique-id (data/random-uuid)
 
         check-name :thing
         check-fn (fn [_ result-cb]
                    (result-cb
                      (results/healthy
-                       {:caller       (:caller context)
-                        :latency      latency
-                        :evaluated-at evaluated-at})))
+                       {:caller    (:caller context)
+                        :unique-id unique-id})))
         check (checks/realtime-check check-name check-fn)
         registry (registry/with-check (registry/empty-registry) check)
 
@@ -225,11 +224,11 @@
 
     (loop [attempts 1]
       (if (not (nil? @result-atom))
-        (is (= @result-atom
-              (results/healthy
-                {:caller       :thing-consumer
-                 :latency      latency
-                 :evaluated-at evaluated-at})))
+        (is (= (tst/without-evaluation-date-time @result-atom)
+              (tst/without-evaluation-date-time
+                (results/healthy
+                  {:caller    :thing-consumer
+                   :unique-id unique-id}))))
         (if (< attempts 5)
           (do
             (async/<!! (async/timeout 25))
@@ -240,22 +239,17 @@
 (deftest resolve-check-resolves-background-check-with-cached-result-via-callback
   (let [context {}
 
-        old-latency (t/new-duration 222 :millis)
-        old-evaluated-at (t/- (t/now) (t/new-duration 30 :seconds))
-
-        fresh-latency (t/new-duration 356 :millis)
-        fresh-evaluated-at (t/now)
+        old-unique-id (data/random-uuid)
+        fresh-unique-id (data/random-uuid)
 
         check-name :thing
         check-fn (fn [_ result-cb]
                    (result-cb
                      (results/healthy
-                       {:latency      fresh-latency
-                        :evaluated-at fresh-evaluated-at})))
+                       {:unique-id fresh-unique-id})))
         check (checks/background-check check-name check-fn)
         cached-result (results/healthy
-                        {:latency      old-latency
-                         :evaluated-at old-evaluated-at})
+                        {:unique-id old-unique-id})
         registry (-> (registry/empty-registry)
                    (registry/with-check check)
                    (registry/with-cached-result check-name cached-result))
@@ -267,10 +261,10 @@
 
     (loop [attempts 1]
       (if (not (nil? @result-atom))
-        (is (= @result-atom
-              (results/healthy
-                {:latency      old-latency
-                 :evaluated-at old-evaluated-at})))
+        (is (= (tst/without-evaluation-date-time @result-atom)
+              (tst/without-evaluation-date-time
+                (results/healthy
+                  {:unique-id old-unique-id}))))
         (if (< attempts 5)
           (do
             (async/<!! (async/timeout 25))
@@ -326,11 +320,11 @@
     (is (results/healthy? (:thing-2 resolved-results-2)))
 
     (is (t/>
-          (get-in resolved-results-2 [:thing-1 :evaluated-at])
-          (get-in resolved-results-1 [:thing-1 :evaluated-at])))
+          (get-in resolved-results-2 [:thing-1 :salutem/evaluated-at])
+          (get-in resolved-results-1 [:thing-1 :salutem/evaluated-at])))
     (is (t/>
-          (get-in resolved-results-2 [:thing-2 :evaluated-at])
-          (get-in resolved-results-1 [:thing-2 :evaluated-at])))))
+          (get-in resolved-results-2 [:thing-2 :salutem/evaluated-at])
+          (get-in resolved-results-1 [:thing-2 :salutem/evaluated-at])))))
 
 (deftest resolve-checks-resolves-background-checks-when-no-cached-results
   (let [check-fn-1 (spy/spy

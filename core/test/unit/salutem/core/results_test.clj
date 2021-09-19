@@ -10,23 +10,23 @@
 
 (deftest creates-result-with-provided-status
   (let [result (results/result :healthy)]
-    (is (= (:status result) :healthy))
+    (is (= (:salutem/status result) :healthy))
     (is (results/healthy? result))
     (is (not (results/unhealthy? result))))
   (let [result (results/result :unhealthy)]
-    (is (= (:status result) :unhealthy))
+    (is (= (:salutem/status result) :unhealthy))
     (is (results/unhealthy? result))
     (is (not (results/healthy? result)))))
 
 (deftest creates-healthy-result
   (let [result (results/healthy)]
-    (is (= (:status result) :healthy))
+    (is (= (:salutem/status result) :healthy))
     (is (results/healthy? result))
     (is (not (results/unhealthy? result)))))
 
 (deftest creates-unhealthy-result
   (let [result (results/unhealthy)]
-    (is (= (:status result) :unhealthy))
+    (is (= (:salutem/status result) :unhealthy))
     (is (results/unhealthy? result))
     (is (not (results/healthy? result)))))
 
@@ -34,12 +34,12 @@
   (let [before (t/- (t/now) (t/new-duration 1 :seconds))
         result (results/healthy)
         after (t/+ (t/now) (t/new-duration 1 :seconds))]
-    (is (t/> after (:evaluated-at result) before))))
+    (is (t/> after (:salutem/evaluated-at result) before))))
 
 (deftest creates-result-with-specified-evaluated-at-datetime-when-provided
   (let [evaluated-at (t/- (t/now) (t/new-period 1 :weeks))
-        result (results/healthy {:evaluated-at evaluated-at})]
-    (is (= (:evaluated-at result) evaluated-at))))
+        result (results/healthy {:salutem/evaluated-at evaluated-at})]
+    (is (= (:salutem/evaluated-at result) evaluated-at))))
 
 (deftest creates-result-with-retained-extra-data
   (let [result (results/healthy {:thing-1 "one" :thing-2 "two"})]
@@ -50,23 +50,25 @@
   (let [before (t/- (t/now) (t/new-duration 1 :seconds))
         result (results/healthy {:thing-1 "one" :thing-2 "two"})
         after (t/+ (t/now) (t/new-duration 1 :seconds))]
-    (is (t/> after (:evaluated-at result) before))))
+    (is (t/> after (:salutem/evaluated-at result) before))))
 
 (deftest is-always-outdated-if-check-is-realtime
   (let [check (checks/realtime-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy))))
         result (results/healthy
-                 {:evaluated-at (t/- (t/now) (t/new-duration 60 :seconds))})]
+                 {:salutem/evaluated-at
+                  (t/- (t/now) (t/new-duration 60 :seconds))})]
     (is (true? (results/outdated? result check)))))
 
 (deftest is-outdated-if-evaluated-at-older-than-now-minus-time-to-re-evaluation
   (let [check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:time-to-re-evaluation (time/duration 30 :seconds)})
+                {:salutem/time-to-re-evaluation (time/duration 30 :seconds)})
         result (results/healthy
-                 {:evaluated-at (t/- (t/now) (t/new-duration 60 :seconds))})]
+                 {:salutem/evaluated-at
+                  (t/- (t/now) (t/new-duration 60 :seconds))})]
     (is (true? (results/outdated? result check)))))
 
 (deftest
@@ -74,9 +76,10 @@
   (let [check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:time-to-re-evaluation (time/duration 60 :seconds)})
+                {:salutem/time-to-re-evaluation (time/duration 60 :seconds)})
         result (results/healthy
-                 {:evaluated-at (t/- (t/now) (t/new-duration 30 :seconds))})]
+                 {:salutem/evaluated-at
+                  (t/- (t/now) (t/new-duration 30 :seconds))})]
     (is (false? (results/outdated? result check)))))
 
 (deftest
@@ -85,9 +88,10 @@
         check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:time-to-re-evaluation (time/duration 30 :seconds)})
+                {:salutem/time-to-re-evaluation (time/duration 30 :seconds)})
         result (results/healthy
-                 {:evaluated-at (t/- (t/now) (t/new-duration 151 :seconds))})]
+                 {:salutem/evaluated-at
+                  (t/- (t/now) (t/new-duration 151 :seconds))})]
     (is (true? (results/outdated? result check relative-to-instant)))))
 
 (deftest
@@ -96,15 +100,16 @@
         check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:time-to-re-evaluation (time/duration 30 :seconds)})
+                {:salutem/time-to-re-evaluation (time/duration 30 :seconds)})
         result (results/healthy
-                 {:evaluated-at (t/- (t/now) (t/new-duration 149 :seconds))})]
+                 {:salutem/evaluated-at
+                  (t/- (t/now) (t/new-duration 149 :seconds))})]
     (is (false? (results/outdated? result check relative-to-instant)))))
 
 (deftest treats-a-nil-result-as-outdated
   (let [check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
-                {:time-to-re-evaluation (time/duration 30 :seconds)})
+                {:salutem/time-to-re-evaluation (time/duration 30 :seconds)})
         result nil]
     (is (true? (results/outdated? result check)))))

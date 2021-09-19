@@ -166,11 +166,11 @@ specific instant for when evaluation occurred:
 (require '[tick.alpha.api :as time])
 
 (salutem/healthy
-  {:evaluated-at (time/- (time/now) (time/new-duration 20 :minutes))})
+  {:salutem/evaluated-at (time/- (time/now) (time/new-duration 20 :minutes))})
 (salutem/unhealthy
-  {:evaluated-at (time/- (time/now) (time/new-duration 20 :minutes))})
+  {:salutem/evaluated-at (time/- (time/now) (time/new-duration 20 :minutes))})
 (salutem/result :starting-up
-  {:evaluated-at (time/- (time/now) (time/new-duration 20 :minutes))})
+  {:salutem/evaluated-at (time/- (time/now) (time/new-duration 20 :minutes))})
 ```
 
 ### Creating a realtime check
@@ -203,10 +203,10 @@ created using the following:
       (http-endpoint-check-fn url))))
 ```
 
-[[salutem.core/realtime-check]] additionally supports a `:timeout` option which
-defines the amount of time to wait on a result before considering the health
-check evaluation failed. By default, this is 10 seconds. To override the
-timeout:
+[[salutem.core/realtime-check]] additionally supports a `:salutem/timeout`
+option which defines the amount of time to wait on a result before considering
+the health check evaluation failed. By default, this is 10 seconds. To override
+the timeout:
 
 ```clojure
 (defn user-profile-service-check
@@ -215,13 +215,13 @@ timeout:
     (salutem/realtime-check
       :services/user-profile
       (http-endpoint-check-fn url)
-      {:timeout (salutem/duration 30 :seconds)})))
+      {:salutem/timeout (salutem/duration 30 :seconds)})))
 ```
 
 ### Creating a background check
 
 Creating a background check is much the same as creating a realtime check but
-with one extra option, `:time-to-re-evaluation`, described below.
+with one extra option, `:salutem/time-to-re-evaluation`, described below.
 
 Again, given an HTTP endpoint check function factory such as the following:
 
@@ -252,8 +252,8 @@ using the following:
 ```
 
 Just as for [[salutem.core/realtime-check]], [[salutem.core/background-check]]
-supports a `:timeout` option which defines the amount of time to wait on a
-result before considering the health check evaluation failed. By default, this
+supports a `:salutem/timeout` option which defines the amount of time to wait on
+a result before considering the health check evaluation failed. By default, this
 is 10 seconds. To override the timeout:
 
 ```clojure
@@ -263,15 +263,15 @@ is 10 seconds. To override the timeout:
     (salutem/background-check
       :services/search
       (http-endpoint-check-fn url)
-      {:timeout (salutem/duration 30 :seconds)})))
+      {:salutem/timeout (salutem/duration 30 :seconds)})))
 ```
 
 Background checks also have a _time to re-evaluation_ which is the amount of
 time to wait before re-evaluating the check to obtain a fresh result. In between
 evaluations, whenever the check is resolved, a cached result is returned.
 [[salutem.core/background-check]] allows the time to re-evaluation for a check
-to be set via the `:time-to-re-evaluation` option. By default, this is 10
-seconds. To override the time to re-evaluation:
+to be set via the `:salutem/time-to-re-evaluation` option. By default, this is 
+10 seconds. To override the time to re-evaluation:
 
 ```clojure
 (defn search-service-check
@@ -280,7 +280,7 @@ seconds. To override the time to re-evaluation:
     (salutem/realtime-check
       :services/search
       (http-endpoint-check-fn url)
-      {:time-to-re-evaluation (salutem/duration 5 :seconds)})))
+      {:salutem/time-to-re-evaluation (salutem/duration 5 :seconds)})))
 ```
 
 ## Evaluating checks
@@ -300,7 +300,7 @@ To evaluate a check synchronously:
     (fn [_ callback-fn]
       (callback-fn
         (salutem/healthy {:latency "73ms"})))
-    {:timeout (salutem/duration 5 :seconds)}))
+    {:salutem/timeout (salutem/duration 5 :seconds)}))
 
 (salutem/evaluate user-profile-service-check)
 ; => (salutem/healthy {:latency "73ms"})
@@ -318,7 +318,7 @@ If the check requires something from a context map:
         (salutem/healthy
           {:latency "73ms"
            :caller  (:caller context)})))
-    {:timeout (salutem/duration 5 :seconds)}))
+    {:salutem/timeout (salutem/duration 5 :seconds)}))
 
 (salutem/evaluate user-profile-service-check
   {:caller :order-service})
@@ -344,7 +344,7 @@ To evaluate a check asynchronously, pass a callback function:
           (salutem/healthy
             {:latency "373ms"
              :caller  (:caller context)}))))
-    {:timeout (salutem/duration 5 :seconds)}))
+    {:salutem/timeout (salutem/duration 5 :seconds)}))
 
 (salutem/evaluate user-profile-service-check
   {:caller :order-service}
@@ -360,8 +360,8 @@ To evaluate a check asynchronously, pass a callback function:
 ; Received result. 
 ; {:latency "373ms"
 ;  :caller :order-service
-;  :status :healthy
-;  :evaluated-at #time/instant "2021-09-05T01:05:17.070Z"})
+;  :salutem/status :healthy
+;  :salutem/evaluated-at #time/instant "2021-09-05T01:05:17.070Z"})
 ```
 
 ### Logging during check evaluation
@@ -391,12 +391,15 @@ example:
   (cartus-test/events logger))
 ; =>
 ; ({:type :salutem.core.checks/attempt.starting,
-;   :context {:trigger-id :ad-hoc, :check-name :thing}}
+;   :context 
+;   {:trigger-id :ad-hoc, 
+;    :check-name :thing}}
 ;  {:type :salutem.core.checks/attempt.completed,
-;   :context {:trigger-id :ad-hoc,
-;             :check-name :thing,
-;             :result {:status :healthy,
-;                      :evaluated-at #time/instant"2021-09-17T10:20:55.469Z"}
+;   :context 
+;   {:trigger-id :ad-hoc,
+;    :check-name :thing,
+;    :result {:salutem/status :healthy,
+;             :salutem/evaluated-at #time/instant"2021-09-17T10:20:55.469Z"}
 ```
 
 The events that may be logged during evaluation are:
@@ -449,12 +452,12 @@ Checks can be added to the registry using [[salutem.core/with-check]]:
       (salutem/realtime-check :services/user-profile
         (http-endpoint-check-fn
           "https://user-profile.example.com/ping")
-        {:timeout (salutem/duration 5 :seconds)}))
+        {:salutem/timeout (salutem/duration 5 :seconds)}))
     (salutem/with-check
       (salutem/background-check :services/search
         (http-endpoint-check-fn
           "https://search.example.com/ping")
-        {:time-to-re-evaluation (salutem/duration 30 :seconds)}))))
+        {:salutem/time-to-re-evaluation (salutem/duration 30 :seconds)}))))
 ```
 
 Whilst mostly for internal use, it's also possible to cache results in the
@@ -470,7 +473,7 @@ single result per check, overwriting an existing result if present.
   (salutem/background-check search-service-check-name
     (http-endpoint-check-fn
       "https://user-profile.example.com/ping")
-    {:timeout (salutem/duration 5 :seconds)}))
+    {:salutem/timeout (salutem/duration 5 :seconds)}))
 
 (def registry
   (-> (salutem/empty-registry)
@@ -493,18 +496,18 @@ Let's say we have the following registry:
   (salutem/realtime-check user-profile-service-check-name
     (http-endpoint-check-fn
       "https://user-profile.example.com/ping")
-    {:timeout (salutem/duration 5 :seconds)}))
+    {:salutem/timeout (salutem/duration 5 :seconds)}))
 
 (def search-service-check
   (salutem/background-check search-service-check-name
     (http-endpoint-check-fn
       "https://search.example.com/ping")
-    {:time-to-re-evaluation (salutem/duration 30 :seconds)}))
+    {:salutem/time-to-re-evaluation (salutem/duration 30 :seconds)}))
 
 (def search-service-result
   (salutem/healthy
     {:latency      "82ms"
-     :evaluated-at (t/- (t/now) (t/new-duration 15 :seconds))}))
+     :salutem/evaluated-at (t/- (t/now) (t/new-duration 15 :seconds))}))
 
 (def registry
   (-> (salutem/empty-registry)
@@ -574,14 +577,14 @@ First, let's define a registry:
     ; produces (salutem/healthy) when evaluated
     (http-endpoint-check-fn
       "https://user-profile.example.com/ping")
-    {:timeout (salutem/duration 5 :seconds)}))
+    {:salutem/timeout (salutem/duration 5 :seconds)}))
 
 (def search-service-check
   (salutem/background-check search-service-check-name
     ; produces (salutem/unhealthy) when evaluated
     (http-endpoint-check-fn
       "https://search.example.com/ping")
-    {:time-to-re-evaluation (salutem/duration 5 :seconds)}))
+    {:salutem/time-to-re-evaluation (salutem/duration 5 :seconds)}))
 
 (def database-check
   (salutem/background-check database-check-name
@@ -592,12 +595,12 @@ First, let's define a registry:
        :host     "localhost"
        :user     "user"
        :password "secret"})
-    {:time-to-re-evaluation (salutem/duration 30 :seconds)}))
+    {:salutem/time-to-re-evaluation (salutem/duration 30 :seconds)}))
 
 (def search-service-result
   (salutem/healthy
     {:latency      "82ms"
-     :evaluated-at (t/- (t/now) (t/new-duration 15 :seconds))}))
+     :salutem/evaluated-at (t/- (t/now) (t/new-duration 15 :seconds))}))
 
 (def registry
   (-> (salutem/empty-registry)
@@ -622,7 +625,7 @@ To resolve each of these checks, use [[salutem.core/resolve-check]]:
 ;; re-evaluate background checks
 ; => (salutem/healthy 
 ;      {:latency "82ms"
-;       :evaluated-at (t/- (t/now) (t/new-duration 15 :seconds))}) 
+;       :salutem/evaluated-at (t/- (t/now) (t/new-duration 15 :seconds))}) 
 
 (salutem/resolve-check registry database-check-name)
 ;; triggers evaluation since no cached result available
@@ -643,7 +646,7 @@ To resolve all of the checks in the registry:
 ;     search-service-check-name 
 ;     (salutem/healthy 
 ;       {:latency "82ms"
-;        :evaluated-at (t/- (t/now) (t/new-duration 15 :seconds))
+;        :salutem/evaluated-at (t/- (t/now) (t/new-duration 15 :seconds))
 ;     
 ;     database-check-name
 ;     (salutem/unhealthy)}
@@ -911,20 +914,23 @@ pipeline. For example:
 ;  {:type :salutem.core.checks/attempt.starting,
 ;   :context {:trigger-id 1, :check-name :thing}}
 ;  {:type :salutem.core.checks/attempt.completed,
-;   :context {:trigger-id 1,
-;             :check-name :thing,
-;             :result {:status :healthy,
-;                      :evaluated-at #time/instant"2021-09-17T11:05:46.261Z"}}}
+;   :context 
+;   {:trigger-id 1,
+;    :check-name :thing,
+;    :result {:salutem/status :healthy,
+;             :salutem/evaluated-at #time/instant"2021-09-17T11:05:46.261Z"}}}
 ;  {:type :salutem.core.maintenance/evaluator.completing,
-;   :context {:trigger-id 1,
-;             :result {:status :healthy,
-;                      :evaluated-at #time/instant"2021-09-17T11:05:46.261Z"},
-;             :check-name :thing}}
+;   :context 
+;   {:trigger-id 1,
+;    :result {:salutem/status :healthy,
+;             :salutem/evaluated-at #time/instant"2021-09-17T11:05:46.261Z"},
+;    :check-name :thing}}
 ;  {:type :salutem.core.maintenance/updater.updating,
-;   :context {:trigger-id 1,
-;             :result {:status :healthy,
-;                      :evaluated-at #time/instant"2021-09-17T11:05:46.261Z"},
-;             :check-name :thing}}
+;   :context 
+;   {:trigger-id 1,
+;    :result {:salutem/status :healthy,
+;             :salutem/evaluated-at #time/instant"2021-09-17T11:05:46.261Z"},
+;    :check-name :thing}}
 ;  {:type :salutem.core.maintenance/maintainer.triggering,
 ;   :context {:trigger-id 2}}
 ;  ...

@@ -39,8 +39,9 @@
   "Constructs a result with the provided `status`.
 
    The optional map of extra data is stored with the result for future use.
-   Unless overridden in the extra data map, an `:evaluated-at` field is added to
-   the result, set to the current date time in the system default time zone."
+   Unless overridden in the extra data map, a `:salutem/evaluated-at` field is
+   added to the result, set to the current date time in the system default time
+   zone."
   ([status] (results/result status))
   ([status extra-data] (results/result status extra-data)))
 
@@ -48,8 +49,9 @@
   "Constructs a healthy result.
 
    The optional map of extra data is stored with the result for future use.
-   Unless overridden in the extra data map, an `:evaluated-at` field is added to
-   the result, set to the current date time in the system default time zone."
+   Unless overridden in the extra data map, an `:salutem/evaluated-at` field is
+   added to the result, set to the current date time in the system default time
+   zone."
   ([] (results/healthy))
   ([extra-data] (results/healthy extra-data)))
 
@@ -57,8 +59,9 @@
   "Constructs an unhealthy result.
 
    The optional map of extra data is stored with the result for future use.
-   Unless overridden in the extra data map, an `:evaluated-at` field is added to
-   the result, set to the current date time in the system default time zone."
+   Unless overridden in the extra data map, an `:salutem/evaluated-at` field is
+   added to the result, set to the current date time in the system default time
+   zone."
   ([] (results/unhealthy))
   ([extra-data] (results/unhealthy extra-data)))
 
@@ -111,11 +114,11 @@
        with the result of the check to signal the check is complete; note, check
        functions _must_ be non-blocking.
      - `opts`: an optional map of additional options for the check, containing:
-       - `:timeout`: a [[duration]] representing the amount of time to wait for
-         the check to complete before considering it failed, defaulting to
-         10 seconds
-       - `:time-to-re-evaluation`: a [[duration]] representing the time to wait
-         after a check is evaluated before attempting to re-evaluate it,
+       - `:salutem/timeout`: a [[duration]] representing the amount of time to
+         wait for the check to complete before considering it failed, defaulting
+         to 10 seconds
+       - `:salutem/time-to-re-evaluation`: a [[duration]] representing the time
+         to wait after a check is evaluated before attempting to re-evaluate it,
          defaulting to 10 seconds.
 
    Note that a result for a background check may live for longer than the
@@ -145,9 +148,9 @@
        with the result fo the check to signal the check is complete; note, check
        functions _must_ be non-blocking.
      - `opts`: an optional map of additional options for the check, containing:
-       - `:timeout`: a [[duration]] representing the amount of time to wait for
-         the check to complete before considering it failed, defaulting to
-         10 seconds"
+       - `:salutem/timeout`: a [[duration]] representing the amount of time to
+         wait for the check to complete before considering it failed, defaulting
+         to 10 seconds"
   ([check-name check-fn] (checks/realtime-check check-name check-fn))
   ([check-name check-fn opts]
    (checks/realtime-check check-name check-fn opts)))
