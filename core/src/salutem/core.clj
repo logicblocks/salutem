@@ -237,7 +237,11 @@
 
    Optionally takes a context map containing arbitrary context required
    by the check in order to run and passed to the check function as the first
-   argument."
+   argument.
+
+   By default, the check is resolved synchronously. If a callback function is
+   provided, the function starts resolution asynchronously, returns immediately
+   and invokes the callback function with the result once available."
   ([registry check-name]
    (registry/resolve-check registry check-name))
   ([registry check-name context]
@@ -246,6 +250,10 @@
 (defn resolve-checks
   "Resolves all checks in the registry, returning a map of check names to
    results.
+
+   Checks requiring re-evaluation are evaluated in parallel such that this
+   function should take about as long as the slowest check (assuming IO is the
+   dominant blocker).
 
    Optionally takes a context map containing arbitrary context required by
    checks in order to run and passed to the check functions as the first
