@@ -124,5 +124,3 @@
      (merge
        resolved-from-cache
        resolved-through-re-evaluation))))
-
-(update-in [[1] [2 3]] [0] conj 3)
