@@ -6,6 +6,8 @@
    [spy.core :as spy]
    [tick.alpha.api :as t]
 
+   [salutem.test.support.data :as data]
+
    [salutem.core.time :as time]
    [salutem.core.checks :as checks]
    [salutem.core.results :as results]
@@ -384,3 +386,47 @@
 
     (is (results/healthy? (check-1-name resolved-results)))
     (is (results/unhealthy? (check-2-name resolved-results)))))
+
+(deftest resolve-checks-resolves-asynchronously-when-passed-callback
+  (let [context {}
+
+        check-1-name :thing-1
+        check-2-name :thing-2
+        check-3-name :thing-3
+
+        cached-result-1 (results/healthy {:id (data/random-uuid)})
+        fresh-result-1 (results/healthy {:id (data/random-uuid)})
+        fresh-result-2 (results/healthy {:id (data/random-uuid)})
+        fresh-result-3 (results/healthy {:id (data/random-uuid)})
+
+        check-fn-1 (fn [_ result-cb] (result-cb fresh-result-1))
+        check-fn-2 (fn [_ result-cb] (result-cb fresh-result-2))
+        check-fn-3 (fn [_ result-cb] (result-cb fresh-result-3))
+
+        check-1 (checks/background-check check-1-name check-fn-1)
+        check-2 (checks/background-check check-2-name check-fn-2)
+        check-3 (checks/realtime-check check-3-name check-fn-3)
+
+        registry (-> (registry/empty-registry)
+                   (registry/with-check check-1)
+                   (registry/with-check check-2)
+                   (registry/with-check check-3)
+                   (registry/with-cached-result check-1-name cached-result-1))
+
+        results-atom (atom nil)
+        callback-fn (fn [results]
+                      (reset! results-atom results))]
+    (registry/resolve-checks registry context callback-fn)
+
+    (loop [attempts 1]
+      (if (not (nil? @results-atom))
+        (is (= @results-atom
+              {check-1-name cached-result-1
+               check-2-name fresh-result-2
+               check-3-name fresh-result-3}))
+        (if (< attempts 5)
+          (do
+            (async/<!! (async/timeout 25))
+            (recur (inc attempts)))
+          (throw (ex-info "Callback function was not called before timeout."
+                   {:checks [check-1 check-2 check-3]})))))))

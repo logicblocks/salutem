@@ -104,10 +104,18 @@
    checks in order to run and passed to the check functions as the first
    argument.
 
+   By default, the checks are resolved synchronously. If a callback function is
+   provided, the function starts resolution asynchronously, returns immediately
+   and invokes the callback function with the results once available.
+
    See [[resolve-check]] for details on how each check is resolved."
   ([registry]
    (resolve-checks registry {}))
   ([registry context]
+   (let [promise (promise)]
+     (resolve-checks registry context #(deliver promise %))
+     (deref promise)))
+  ([registry context callback-fn]
    (let [{:keys [requiring-re-evaluation resolved-from-cache]}
          (reduce
            (fn [accumulator check-name]
@@ -129,10 +137,11 @@
                  (fn [result]
                    (deliver promise [(:name check) result])))
                promise))
-           requiring-re-evaluation)
-
-         resolved-through-re-evaluation
-         (into {} (map deref re-evaluation-promises))]
-     (merge
-       resolved-from-cache
-       resolved-through-re-evaluation))))
+           requiring-re-evaluation)]
+     (future
+       (let [resolved-through-re-evaluation
+             (into {} (map deref re-evaluation-promises))]
+         (callback-fn
+           (merge
+             resolved-from-cache
+             resolved-through-re-evaluation)))))))

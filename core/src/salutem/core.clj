@@ -259,6 +259,10 @@
    checks in order to run and passed to the check functions as the first
    argument.
 
+   By default, the checks are resolved synchronously. If a callback function is
+   provided, the function starts resolution asynchronously, returns immediately
+   and invokes the callback function with the results once available.
+
    See [[resolve-check]] for details on how each check is resolved."
   ([registry] (registry/resolve-checks registry))
   ([registry context] (registry/resolve-checks registry context)))
