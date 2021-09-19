@@ -78,11 +78,15 @@
   ([registry check-name]
    (resolve-check registry check-name {}))
   ([registry check-name context]
+   (let [promise (promise)]
+     (resolve-check registry check-name context #(deliver promise %))
+     (deref promise)))
+  ([registry check-name context callback-fn]
    (let [check (find-check registry check-name)
          result (find-cached-result registry check-name)]
      (if (requires-re-evaluation? check result)
-       (checks/evaluate check context)
-       result))))
+       (checks/evaluate check context callback-fn)
+       (callback-fn result)))))
 
 (defn resolve-checks
   "Resolves all checks in the registry, returning a map of check names to

@@ -1,7 +1,7 @@
 ToDo
 ====
 
-* Allow async versions of `resolve-check` and `resolve-checks`
+* Allow async versions of `resolve-checks`
 * Convert keys to namespaced where relevant (e.g., `:evaluated-at`)
 * Document: 
   * `checks/attempt`
