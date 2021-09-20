@@ -1541,9 +1541,9 @@
     (async/<!! (async/timeout 190))
 
     (is (=
-          (tst/without-evaluation-date-time
+          (tst/without-timings
             (registry/find-cached-result @registry-store :thing))
-          (tst/without-evaluation-date-time
+          (tst/without-timings
             (results/healthy
               (merge context
                 {:invocation-count 3})))))

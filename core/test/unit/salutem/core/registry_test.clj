@@ -224,8 +224,8 @@
 
     (loop [attempts 1]
       (if (not (nil? @result-atom))
-        (is (= (tst/without-evaluation-date-time @result-atom)
-              (tst/without-evaluation-date-time
+        (is (= (tst/without-timings @result-atom)
+              (tst/without-timings
                 (results/healthy
                   {:caller    :thing-consumer
                    :unique-id unique-id}))))
@@ -261,8 +261,8 @@
 
     (loop [attempts 1]
       (if (not (nil? @result-atom))
-        (is (= (tst/without-evaluation-date-time @result-atom)
-              (tst/without-evaluation-date-time
+        (is (= (tst/without-timings @result-atom)
+              (tst/without-timings
                 (results/healthy
                   {:unique-id old-unique-id}))))
         (if (< attempts 5)
@@ -291,7 +291,12 @@
                    (registry/with-check check-2))
 
         results (registry/resolve-checks registry)]
-    (is (= {check-1-name result-1 check-2-name result-2} results))))
+    (is (= {check-1-name (tst/without-timings result-1)
+            check-2-name (tst/without-timings result-2)}
+          (into {}
+            (map
+              (fn [[name result]] [name (tst/without-timings result)])
+              results))))))
 
 (deftest resolve-checks-resolves-all-realtime-checks-every-time
   (let [check-fn-1 (spy/spy
@@ -414,10 +419,14 @@
 
     (loop [attempts 1]
       (if (not (nil? @results-atom))
-        (is (= @results-atom
-              {check-1-name cached-result-1
-               check-2-name fresh-result-2
-               check-3-name fresh-result-3}))
+        (is (=
+              (into {}
+                (map
+                  (fn [[name result]] [name (tst/without-timings result)])
+                  @results-atom))
+              {check-1-name (tst/without-timings cached-result-1)
+               check-2-name (tst/without-timings fresh-result-2)
+               check-3-name (tst/without-timings fresh-result-3)}))
         (if (< attempts 5)
           (do
             (async/<!! (async/timeout 25))

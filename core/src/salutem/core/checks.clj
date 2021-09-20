@@ -126,7 +126,8 @@
      (async/go
        (let [{:keys [salutem/check-fn salutem/timeout]} check
              callback-channel (async/chan)
-             exception-channel (async/chan 1)]
+             exception-channel (async/chan 1)
+             before (t/now)]
          (log/info logger ::attempt.starting
            {:trigger-id trigger-id
             :check-name check-name})
@@ -139,7 +140,8 @@
          (async/alt!
            exception-channel
            ([exception]
-            (do
+            (let [after (t/now)
+                  duration (t/between before after)]
               (log/info logger ::attempt.threw-exception
                 {:trigger-id trigger-id
                  :check-name check-name
@@ -148,11 +150,13 @@
                 {:trigger-id trigger-id
                  :check      check
                  :result     (results/unhealthy
-                               {:salutem/reason    :threw-exception
-                                :salutem/exception exception})})))
+                               {:salutem/reason              :threw-exception
+                                :salutem/exception           exception
+                                :salutem/evaluation-duration duration})})))
 
            (async/timeout (t/millis timeout))
-           (do
+           (let [after (t/now)
+                 duration (t/between before after)]
              (log/info logger ::attempt.timed-out
                {:trigger-id trigger-id
                 :check-name check-name})
@@ -160,11 +164,15 @@
                {:trigger-id trigger-id
                 :check      check
                 :result     (results/unhealthy
-                              {:salutem/reason :timed-out})}))
+                              {:salutem/reason              :timed-out
+                               :salutem/evaluation-duration duration})}))
 
            callback-channel
            ([result]
-            (do
+            (let [after (t/now)
+                  duration (t/between before after)
+                  result (results/prepend result
+                           {:salutem/evaluation-duration duration})]
               (log/info logger ::attempt.completed
                 {:trigger-id trigger-id
                  :check-name check-name

@@ -9,8 +9,6 @@ ToDo
   * `maintenance/evaluator`
   * `maintenance/updater`
   * `maintenance/notifier`
-* Include context of timeout in unhealthy response on attempt timeout
-  * Maybe just add latency to result
 * Update getting started with asynchronous versions of `resolve-check` and
   `resolve-checks`.
 * Add database check function

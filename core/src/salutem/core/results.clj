@@ -40,6 +40,9 @@
   ([extra-date]
    (result :unhealthy extra-date)))
 
+(defn prepend [result extra-data]
+  (merge extra-data result))
+
 (defn healthy?
   "Returns `true` if the result has a `:healthy` status, `false`
    otherwise."

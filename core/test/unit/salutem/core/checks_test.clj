@@ -121,11 +121,44 @@
     (let [result-message (tsa/<!!-or-timeout result-channel)]
       (is (= {:trigger-id trigger-id
               :check      check
-              :result     (tst/without-evaluation-date-time
+              :result     (tst/without-timings
                             (results/healthy
                               {:correlation-id correlation-id}))}
             (update-in result-message [:result]
-              tst/without-evaluation-date-time))))))
+              tst/without-timings))))))
+
+(deftest attempt-extends-result-with-evaluation-duration-on-success
+  (let [dependencies {}
+        trigger-id :test
+        context {}
+
+        before (t/now)
+
+        correlation-id (data/random-uuid)
+
+        check (checks/realtime-check :thing
+                (fn [_ result-cb]
+                  (future
+                    (Thread/sleep 50)
+                    (result-cb
+                      (results/healthy
+                        {:correlation-id correlation-id})))))
+
+        result-channel (checks/attempt dependencies trigger-id check context)
+
+        result-message (tsa/<!!-or-timeout result-channel)
+        result (:result result-message)
+
+        after (t/now)
+
+        lower-duration (t/new-duration 0 :millis)
+        upper-duration (t/between before after)
+
+        evaluation-duration (:salutem/evaluation-duration result)]
+    (is (not (nil? evaluation-duration)))
+    (is (and
+          (t/< lower-duration evaluation-duration)
+          (t/<= evaluation-duration upper-duration)))))
 
 (deftest attempt-passes-provided-context-to-check-fn
   (let [correlation-id (data/random-uuid)
@@ -145,11 +178,11 @@
     (let [result-message (tsa/<!!-or-timeout result-channel)]
       (is (= {:trigger-id trigger-id
               :check      check
-              :result     (tst/without-evaluation-date-time
+              :result     (tst/without-timings
                             (results/healthy
                               {:correlation-id correlation-id}))}
             (update-in result-message [:result]
-              tst/without-evaluation-date-time))))))
+              tst/without-timings))))))
 
 (deftest attempt-puts-unhealthy-result-with-reason-when-check-fn-times-out
   (let [dependencies {}
@@ -172,11 +205,47 @@
                            (t/new-duration 300 :millis))]
       (is (= {:trigger-id trigger-id
               :check      check
-              :result     (tst/without-evaluation-date-time
+              :result     (tst/without-timings
                             (results/unhealthy
                               {:salutem/reason :timed-out}))}
             (update-in result-message [:result]
-              tst/without-evaluation-date-time))))))
+              tst/without-timings))))))
+
+(deftest attempt-extends-result-with-evaluation-duration-on-time-out
+  (let [dependencies {}
+        trigger-id :test
+        context {}
+
+        before (t/now)
+
+        correlation-id (data/random-uuid)
+
+        check-timeout (time/duration 100 :millis)
+        check (checks/realtime-check :thing
+                (fn [_ result-cb]
+                  (future
+                    (Thread/sleep 200)
+                    (result-cb
+                      (results/healthy
+                        {:correlation-id correlation-id}))))
+                {:salutem/timeout check-timeout})
+
+        result-channel (checks/attempt dependencies trigger-id check context)
+
+        result-message (tsa/<!!-or-timeout result-channel
+                         (t/new-duration 300 :millis))
+        result (:result result-message)
+
+        after (t/now)
+
+        lower-duration (t/new-duration 0 :millis)
+        upper-duration (t/between before after)
+
+        evaluation-duration (:salutem/evaluation-duration result)]
+    (is (not (nil? evaluation-duration)))
+    (is (and
+          (t/< lower-duration evaluation-duration)
+          (t/<= evaluation-duration upper-duration)))))
 
 (deftest attempt-puts-unhealthy-result-with-reason-when-check-fn-throws
   (let [dependencies {}
@@ -193,12 +262,40 @@
     (let [result-message (tsa/<!!-or-timeout result-channel)]
       (is (= {:trigger-id trigger-id
               :check      check
-              :result     (tst/without-evaluation-date-time
+              :result     (tst/without-timings
                             (results/unhealthy
                               {:salutem/reason    :threw-exception
                                :salutem/exception exception}))}
             (update-in result-message [:result]
-              tst/without-evaluation-date-time))))))
+              tst/without-timings))))))
+
+(deftest attempt-extends-result-with-evaluation-duration-on-exception-thrown
+  (let [dependencies {}
+        trigger-id :test
+        context {}
+
+        before (t/now)
+
+        exception (ex-info "Intentionally failed."
+                    {:check-name :thing})
+        check (checks/realtime-check :thing
+                (fn [_ _] (throw exception)))
+
+        result-channel (checks/attempt dependencies trigger-id check context)
+
+        result-message (tsa/<!!-or-timeout result-channel)
+        result (:result result-message)
+
+        after (t/now)
+
+        lower-duration (t/new-duration 0 :millis)
+        upper-duration (t/between before after)
+
+        evaluation-duration (:salutem/evaluation-duration result)]
+    (is (not (nil? evaluation-duration)))
+    (is (and
+          (t/<= lower-duration evaluation-duration)
+          (t/<= evaluation-duration upper-duration)))))
 
 (deftest attempt-logs-event-when-starting-to-supplied-logger
   (let [logger (cartus-test/logger)
@@ -307,9 +404,9 @@
                 (fn [_ result-cb]
                   (result-cb
                     (results/healthy {:unique-id unique-id}))))]
-    (is (= (tst/without-evaluation-date-time
+    (is (= (tst/without-timings
              (checks/evaluate check))
-          (tst/without-evaluation-date-time
+          (tst/without-timings
             (results/healthy {:unique-id unique-id}))))))
 
 (deftest evaluate-passes-context-map-to-check-function-during-evaluation
@@ -321,9 +418,9 @@
                     (results/healthy
                       {:caller    (:caller context)
                        :unique-id unique-id}))))]
-    (is (= (tst/without-evaluation-date-time
+    (is (= (tst/without-timings
              (checks/evaluate check {:caller :thing-consumer}))
-          (tst/without-evaluation-date-time
+          (tst/without-timings
             (results/healthy
               {:caller    :thing-consumer
                :unique-id unique-id}))))))
@@ -347,8 +444,8 @@
 
     (loop [attempts 1]
       (if (not (nil? @result-atom))
-        (is (= (tst/without-evaluation-date-time @result-atom)
-              (tst/without-evaluation-date-time
+        (is (= (tst/without-timings @result-atom)
+              (tst/without-timings
                 (results/healthy
                   {:caller    :thing-consumer
                    :unique-id unique-id}))))
