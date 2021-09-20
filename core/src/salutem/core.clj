@@ -116,14 +116,17 @@
      - `opts`: an optional map of additional options for the check, containing:
        - `:salutem/timeout`: a [[duration]] representing the amount of time to
          wait for the check to complete before considering it failed, defaulting
-         to 10 seconds
+         to 10 seconds.
        - `:salutem/time-to-re-evaluation`: a [[duration]] representing the time
          to wait after a check is evaluated before attempting to re-evaluate it,
          defaulting to 10 seconds.
 
+   Any extra entries provided in the `opts` map are retained on the check for
+   later use.
+
    Note that a result for a background check may live for longer than the
    time to re-evaluation since evaluation takes time and the result will
-   continue to be returned from the registry whenever the check us resolved
+   continue to be returned from the registry whenever the check is resolved
    until the evaluation has completed and the new result has been added to the
    registry."
   ([check-name check-fn] (checks/background-check check-name check-fn))
@@ -150,7 +153,10 @@
      - `opts`: an optional map of additional options for the check, containing:
        - `:salutem/timeout`: a [[duration]] representing the amount of time to
          wait for the check to complete before considering it failed, defaulting
-         to 10 seconds"
+         to 10 seconds.
+
+   Any extra entries provided in the `opts` map are retained on the check for
+   later use."
   ([check-name check-fn] (checks/realtime-check check-name check-fn))
   ([check-name check-fn opts]
    (checks/realtime-check check-name check-fn opts)))
@@ -248,7 +254,9 @@
   ([registry check-name]
    (registry/resolve-check registry check-name))
   ([registry check-name context]
-   (registry/resolve-check registry check-name context)))
+   (registry/resolve-check registry check-name context))
+  ([registry check-name context callback-fn]
+   (registry/resolve-check registry check-name context callback-fn)))
 
 (defn resolve-checks
   "Resolves all checks in the registry, returning a map of check names to
@@ -268,7 +276,9 @@
 
    See [[resolve-check]] for details on how each check is resolved."
   ([registry] (registry/resolve-checks registry))
-  ([registry context] (registry/resolve-checks registry context)))
+  ([registry context] (registry/resolve-checks registry context))
+  ([registry context callback-fn]
+   (registry/resolve-checks registry context callback-fn)))
 
 ; maintenance
 (defn maintain

@@ -52,11 +52,11 @@
          attempting to re-evaluate it, defaulting to 10 seconds.
 
    Any extra entries provided in the `opts` map are retained on the check for
-   future use.
+   later use.
 
    Note that a result for a background check may live for longer than the
    time to re-evaluation since evaluation takes time and the result will
-   continue to be returned from the registry whenever the check us resolved
+   continue to be returned from the registry whenever the check is resolved
    until the evaluation has completed and the new result has been added to the
    registry."
   ([check-name check-fn]
@@ -96,7 +96,7 @@
          defaulting to 10 seconds.
 
    Any extra entries provided in the `opts` map are retained on the check for
-   future use."
+   later use."
   ([check-name check-fn]
    (realtime-check check-name check-fn {}))
   ([check-name check-fn opts]
