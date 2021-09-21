@@ -1,14 +1,14 @@
 ToDo
 ====
 
-* Document: 
-  * `checks/attempt`
+* Document:
   * `maintenance/maintainer`
   * `maintenance/refreshher`
   * `maintenance/evaluation-state-store`
   * `maintenance/evaluator`
   * `maintenance/updater`
   * `maintenance/notifier`
+  * `results/prepend` (and consider rename)
 * Update getting started with asynchronous versions of `resolve-check` and
   `resolve-checks`.
 * Add database check function

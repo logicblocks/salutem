@@ -118,6 +118,41 @@
   (= (:salutem/type check) :realtime))
 
 (defn attempt
+  "Attempts to obtain a result for a check, handling timeouts and exceptions.
+
+  Takes the following parameters:
+
+    - `dependencies`: A map of dependencies used by `attempt` in obtaining the
+      result, currently supporting only a `:logger` entry with a
+      [`cartus.core/Logger`](https://logicblocks.github.io/cartus/cartus.core.html#var-Logger)
+      value.
+    - `trigger-id`: An ID identifying the attempt in any subsequently produced
+      messages and used in logging.
+    - `check`: the check to be attempted.
+    - `context`: an optional map containing arbitrary context required by the
+      check in order to run and passed to the check functions as the first
+      argument; defaults to an empty map.
+    - `result-channel`: an optional channel on which to send the result message;
+      defaults to a channel with a buffer length of 1.
+
+  The attempt is performed asynchronously and the result channel is returned
+  immediately.
+
+  In the case that the attempt takes longer than the check's timeout, an
+  unhealthy result is produced, including `:salutem/reason` as `:timed-out`.
+
+  In the case that the attempt throws an exception, an unhealthy result is
+  produced, including `:salutem/reason` as `:exception-thrown` and including
+  the exception at `:salutem/exception`.
+
+  In all other cases, the result produced by the check is passed on to the
+  result channel.
+
+  All produced results include a `:salutem/evaluation-duration` entry with the
+  time taken to obtain the result, which can be overridden within check
+  functions if required."
+  ([dependencies trigger-id check]
+   (attempt dependencies trigger-id check {}))
   ([dependencies trigger-id check context]
    (attempt dependencies trigger-id check context (async/chan 1)))
   ([dependencies trigger-id check context result-channel]
