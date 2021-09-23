@@ -40,7 +40,10 @@
   ([extra-date]
    (result :unhealthy extra-date)))
 
-(defn prepend [result extra-data]
+(defn prepend
+  "Adds each entry from the provided map of extra data to the result if no entry
+  already exists in the result for the key."
+  [result extra-data]
   (merge extra-data result))
 
 (defn healthy?

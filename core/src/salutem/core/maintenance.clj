@@ -13,6 +13,30 @@
    [salutem.core.registry :as registry]))
 
 (defn maintainer
+  "Starts a maintainer process which periodically triggers a registry refresh.
+
+  Takes the following parameters:
+
+    - `dependencies`: a map of dependencies used by the maintainer, currently
+      supporting only a `:logger` entry with a
+      [`cartus.core/Logger`](https://logicblocks.github.io/cartus/cartus.core.html#var-Logger)
+      value.
+    - `registry-store`: an atom containing the registry for which refreshes
+      should be periodically triggered.
+    - `context`: a map containing arbitrary context required by checks
+      in order to run and passed to the check functions as the first argument.
+    - `interval`: a [[duration]] describing the wait interval between refresh
+      triggers.
+    - `trigger-channel`: the channel on which to send trigger messages.
+    - `shutdown-channel`: an optional channel which when closed, closes the
+      trigger channel; included in the map returned by the function; if not
+      provided, a channel with no buffer is used.
+
+  The trigger messages sent to the trigger channel include:
+
+    - `:trigger-id`: a monotonically increasing integer identifying the trigger.
+    - `:registry`: the registry which should be refreshed.
+    - `:context`: the context map to provide to checks."
   ([dependencies registry-store context interval trigger-channel]
    (maintainer
      dependencies registry-store context interval
@@ -44,6 +68,33 @@
      {:shutdown-channel shutdown-channel})))
 
 (defn refresher
+  "Starts a refresher process which triggers evaluation of outdated checks.
+
+  Takes the following parameters:
+
+    - `dependencies`: a map of dependencies used by the refresher, currently
+      supporting only a `:logger` entry with a
+      [`cartus.core/Logger`](https://logicblocks.github.io/cartus/cartus.core.html#var-Logger)
+      value.
+    - `trigger-channel`: a channel on which trigger messages are received.
+    - `evaluation-channel`: an optional channel on which evaluation messages are
+      sent; included in the map returned by the function; if not
+      provided, a channel with a buffer of length 1 is used.
+
+  The trigger messages received on the trigger channel should include:
+
+    - `:trigger-id`: a monotonically increasing integer identifying the trigger.
+    - `:registry`: the registry which should be refreshed.
+    - `:context`: the context map to provide to checks.
+
+  The evaluation messages sent on the evaluation channel include:
+
+    - `:trigger-id`: the trigger ID from the trigger message.
+    - `:check`: the check which should be evaluated.
+    - `:context`: the context map to provide to the check.
+
+  If the provided trigger channel is closed, the refresher will in turn close
+  the evaluation channel."
   ([dependencies trigger-channel]
    (refresher dependencies trigger-channel (async/chan 1)))
   ([dependencies trigger-channel evaluation-channel]
@@ -75,6 +126,12 @@
   {:checks #{} :response-channels #{}})
 
 (defn evaluation-state-store
+  "Returns a ref containing empty evaluation state, used by the evaluator to
+  keep track of in flight checks.
+
+  Optionally takes a
+  [`cartus.core/Logger`](https://logicblocks.github.io/cartus/cartus.core.html#var-Logger)
+  in which case any change to the ref is logged at debug level to the logger."
   ([] (ref empty-evaluation-state))
   ([logger]
    (add-watch (ref empty-evaluation-state)
@@ -130,6 +187,43 @@
   (and (= channel evaluation-channel) (nil? message)))
 
 (defn evaluator
+  "Starts an evaluator process which evaluates checks.
+
+  The evaluator process ensures that only one evaluation of any check can be in
+  progress at a time. It does so by keeping track of in flight checks in a state
+  ref, which can be passed as an argument, useful in the case that multiple
+  evaluators are working as competing consumers of an evaluation channel.
+
+  Takes the following parameters:
+
+    - `dependencies`: a map of dependencies used by the evaluator, currently
+      supporting only a `:logger` entry with a
+      [`cartus.core/Logger`](https://logicblocks.github.io/cartus/cartus.core.html#var-Logger)
+      value.
+    - `state-store`: an optional ref containing evaluation state, best created
+      by [[evaluation-state-store]]; defaults to an empty state store.
+    - `evaluation-channel`: a channel on which evaluation messages are received.
+    - `result-channel`: an optional channel on which result messages are
+      sent; included in the map returned by the function; if not provided, a
+      channel with a buffer of length 10 is used.
+    - `skip-channel`: an optional channel on which skipped evaluation messages
+      are sent; included in the map returned by the function; if not provided, a
+      channel with a sliding buffer of length 10 is used.
+
+  The evaluation messages received on the evaluation channel should include:
+
+    - `:trigger-id`: a trigger ID used to correlate multiple evaluations.
+    - `:check`: the check to be evaluated.
+    - `:context`: the context map to provide to the check.
+
+  The result messages sent on the result channel include:
+
+    - `:trigger-id`: the trigger ID passed in the evaluation message.
+    - `:check`: the evaluated check.
+    - `:result`: the result of evaluating the check.
+
+  If the provided evaluation channel is closed, the evaluator will in turn close
+  the result channel and the skip channel."
   ([dependencies evaluation-channel]
    (evaluator dependencies
      (evaluation-state-store)
@@ -201,6 +295,24 @@
      output-channels)))
 
 (defn updater
+  "Starts an updater process which updates the registry in a registry store with
+  new results.
+
+  Takes the following parameters:
+
+    - `dependencies`: a map of dependencies used by the updater, currently
+      supporting only a `:logger` entry with a
+      [`cartus.core/Logger`](https://logicblocks.github.io/cartus/cartus.core.html#var-Logger)
+      value.
+    - `registry-store`: an atom containing the registry which should be updated
+      with new results.
+    - `result-channel`: a channel on which result messages are received.
+
+  The result messages received on the result channel should include:
+
+    - `:trigger-id`: a trigger ID used to correlate multiple results.
+    - `:check`: the check that produced the result.
+    - `:result`: the result with which to update the registry."
   [dependencies registry-store result-channel]
   (let [logger (:logger dependencies)]
     (log/info logger ::updater.starting)
@@ -219,6 +331,25 @@
           (log/info logger ::updater.stopped))))))
 
 (defn notifier
+  "Starts a notifier process which executes a number of notification callbacks
+  with new results.
+
+  Takes the following parameters:
+
+    - `dependencies`: a map of dependencies used by the notifier, currently
+      supporting only a `:logger` entry with a
+      [`cartus.core/Logger`](https://logicblocks.github.io/cartus/cartus.core.html#var-Logger)
+      value.
+    - `callbacks`: a sequence of arity-2 functions, with the first argument
+      being a check and the second argument being a result, to call whenever a
+      new result is available.
+    - `result-channel`: a channel on which result messages are received.
+
+  The result messages received on the result channel should include:
+
+    - `:trigger-id`: a trigger ID used to correlate multiple results.
+    - `:check`: the check that produced the result.
+    - `:result`: the result with which to update the registry."
   [dependencies callbacks result-channel]
   (let [logger (:logger dependencies)]
     (log/info logger ::notifier.starting
