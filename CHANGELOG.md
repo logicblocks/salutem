@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.1.5] — 2021-09-23
+
 ## [0.1.4] — 2021-09-17
 
 ## [0.1.3] — 2021-09-17
@@ -26,4 +28,5 @@ Released without _CHANGELOG.md_.
 [0.1.1]: https://github.com/logicblocks/salutem/compare/0.1.0...0.1.1
 [0.1.3]: https://github.com/logicblocks/salutem/compare/0.1.1...0.1.3
 [0.1.4]: https://github.com/logicblocks/salutem/compare/0.1.3...0.1.4
-[Unreleased]: https://github.com/logicblocks/salutem/compare/0.1.4...HEAD
+[0.1.5]: https://github.com/logicblocks/salutem/compare/0.1.4...0.1.5
+[Unreleased]: https://github.com/logicblocks/salutem/compare/0.1.5...HEAD
