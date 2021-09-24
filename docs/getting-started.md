@@ -636,7 +636,7 @@ It's important to take note that the background check with an outdated result is
 not re-evaluated as part of resolution. In order to keep the cached result
 up-to-date, use a [maintenance pipeline](#the-maintenance-pipeline).
 
-To resolve all of the checks in the registry:
+To resolve all the checks in the registry:
 
 ```clojure
 (salutem/resolve-checks registry)
@@ -652,12 +652,21 @@ To resolve all of the checks in the registry:
 ;     (salutem/unhealthy)}
 ```
 
-Since both [[salutem.core/resolve-check]] and [[salutem.core/resolve-checks]]
-can result in evaluation of checks, they each have an arity that takes a
-`context` map to be passed to the check functions if needed. If that context
-map includes a `:logger` entry with a 
+Both [[salutem.core/resolve-check]] and [[salutem.core/resolve-checks]] have
+additional arities that allow a context map and a callback function to be 
+provided.
+
+When a context map is provided, it is passed to the check functions whenever a
+check is evaluated as part of resolution. If that context map includes a 
+`:logger` entry with a 
 [cartus.core/Logger](https://logicblocks.github.io/cartus/cartus.core.html#var-Logger)
 value, log events will be produced throughout the resolution process.
+
+When a callback function is provided the resolution functions run
+asynchronously, return immediately and call the callback function once complete.
+The callback functions are called with the respective return values that would
+be returned by each of [[salutem.core/resolve-check]] and 
+[[salutem.core/resolve-checks]].
 
 ## The maintenance pipeline
 
