@@ -3,11 +3,12 @@
 `salutem` is a system for defining and maintaining a collection of health checks
 with support for:
 
-* both realtime and background checks,
-* a registry for storing, finding and resolving checks, and
-* an asynchronous maintenance system for ensuring that the results of checks are
-  kept up-to-date according to their definition, notifying on the results of
-  those checks as needed.
+* realtime check
+* background checks 
+* a registry for storing, finding and resolving checks
+* an asynchronous maintenance system for ensuring that the results are kept
+  up-to-date
+* invoking callbacks after checks are evaluated
 
 `salutem` is somewhat inspired by
 [dropwizard-health](https://github.com/dropwizard/dropwizard-health) which may
@@ -66,16 +67,14 @@ style="width: 100%; max-width: 680px;"/>
   generated Results that should be cached.
 * A **RegistryStore** is an Atom containing a Registry, used in some places
   where rather than a Registry, a shared reference to a Registry is required.
-* Checks within a Registry can be _resolved_ to a Result, which either retrieves
-  a cached result or evaluates the check if it is realtime or if there is no
-  available result.
 * There are currently two types of checks supported, _RealtimeChecks_ and
   _BackgroundChecks_.
 * A **RealtimeCheck** is evaluated every time it is resolved such that cached
   Results will never be returned.
 * A **BackgroundCheck** is intended to be evaluated in the background
   periodically such that a cached result is returned whenever the Check is
-  resolved.
+  resolved. If there's no cached value available for a background check it is
+  resolved in realtime.
 
 ## Creating checks
 
@@ -102,13 +101,12 @@ client such as `http-kit`, the check function might look like the following:
 (require '[org.httpkit.client :as http])
 
 (fn [context callback-fn]
-  (let [url (:url context)]
-    (http/get url
-      (fn [{:keys [status]}]
-        (callback-fn
-          (if (<= 200 status 399)
-            (salutem/healthy)
-            (salutem/unhealthy)))))))
+  (http/get (:url context)
+    (fn [{:keys [status]}]
+      (callback-fn
+        (if (<= 200 status 399)
+          (salutem/healthy)
+          (salutem/unhealthy))))))
 ```
 
 If your health check logic is blocking, be sure to use a future within your
@@ -133,17 +131,17 @@ the check function might look like the following:
 Check functions should also implement some form of timeout on calls that could
 block for a long time to prevent resource exhaustion. It may also make sense to
 implement some form of circuit breaker within the check function, potentially
-with exponential backoff. This is currently left up to the implementer of the
-check function but may be incorporated into `salutem` in the future.
+with exponential backoff. This is currently left to the user but may be
+incorporated into `salutem` in the future.
 
 ### Producing results
 
-You'll notice in the check functions defined [above](#check-functions), we used
-[[salutem.core/healthy]] and [[salutem.core/unhealthy]] to produce healthy and
-unhealthy results respectively. Whilst it is convenient to have these functions,
-there's nothing inherently special about the results generated, except that they
-have `:healthy` and `:unhealthy` statuses. Nothing in `salutem` depends on these
-statuses and in fact, any status can be used.
+You'll notice in the check functions defined [above](#check-functions) that we
+used [[salutem.core/healthy]] and [[salutem.core/unhealthy]] to produce healthy 
+and unhealthy results respectively. Whilst it is convenient to have these
+functions, there's nothing inherently special about the results generated,
+except that they have `:healthy` and `:unhealthy` statuses. Nothing in `salutem`
+depends on these statuses and in fact, any status can be used.
 
 If, for example, you need a status to represent that a dependency is in the
 process of starting up, you can create such a result using
@@ -156,10 +154,8 @@ process of starting up, you can create such a result using
   {:progress "Connecting flanges"})
 ```
 
-All of [[salutem.core/healthy]], [[salutem.core/unhealthy]] and
-[[salutem.core/result]] keep track of the instant at which evaluation occurred
-which by default is the instant at which the result was created. To set a
-specific instant for when evaluation occurred:
+Results keep track of the instant at which evaluation occurred. By default, this
+is the instant at which the result was created. To override the evaluated-at:
 
 ```clojure
 (require '[salutem.core :as salutem])
@@ -421,8 +417,8 @@ if:
 
 * it is `nil`;
 * it is for a realtime check; or
-* it is for a background check and was produced more than the time to
-  re-evaluation of the check in the past.
+* it is for a background check and was produced further in the past than
+  specified by the time to re-evaluation.
 
 ## Managing checks using a registry
 
@@ -462,7 +458,7 @@ Checks can be added to the registry using [[salutem.core/with-check]]:
 
 Whilst mostly for internal use, it's also possible to cache results in the
 registry using [[salutem.core/with-cached-result]]. The result cache stores a
-single result per check, overwriting an existing result if present.
+single result per check, overwriting any existing result.
 
 ```clojure
 (require '[salutem.core :as salutem])
@@ -559,8 +555,8 @@ To get the checks in the registry that have outdated results:
 
 Resolving a check in a registry is the act of obtaining a result for that check.
 However, it doesn't necessarily mean that the check will be evaluated. Instead,
-depending on the type of the check, it may be possible to resolve to a cached
-result instead of triggering evaluation.
+depending on the type of the check, it may resolve to a cached result instead of
+triggering evaluation.
 
 First, let's define a registry:
 
