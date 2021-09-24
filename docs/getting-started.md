@@ -3,12 +3,12 @@
 `salutem` is a system for defining and maintaining a collection of health checks
 with support for:
 
-* realtime check
-* background checks 
-* a registry for storing, finding and resolving checks
-* an asynchronous maintenance system for ensuring that the results are kept
-  up-to-date
-* invoking callbacks after checks are evaluated
+* realtime checks;
+* background checks; 
+* a registry for storing, finding and resolving checks;
+* an asynchronous maintenance system for ensuring that the results of checks are
+  kept up-to-date; and
+* notifying via callbacks after checks are evaluated.
 
 `salutem` is somewhat inspired by
 [dropwizard-health](https://github.com/dropwizard/dropwizard-health) which may
@@ -67,14 +67,16 @@ style="width: 100%; max-width: 680px;"/>
   generated Results that should be cached.
 * A **RegistryStore** is an Atom containing a Registry, used in some places
   where rather than a Registry, a shared reference to a Registry is required.
+* Checks within a Registry can be _resolved_ to a Result, which may or may not
+  require evaluation of the check, depending on the check's type.
 * There are currently two types of checks supported, _RealtimeChecks_ and
   _BackgroundChecks_.
 * A **RealtimeCheck** is evaluated every time it is resolved such that cached
   Results will never be returned.
 * A **BackgroundCheck** is intended to be evaluated in the background
   periodically such that a cached result is returned whenever the Check is
-  resolved. If there's no cached value available for a background check it is
-  resolved in realtime.
+  resolved. If no cached result is available for a background check it is
+  evaluated in realtime in order to obtain a result.
 
 ## Creating checks
 
@@ -155,7 +157,8 @@ process of starting up, you can create such a result using
 ```
 
 Results keep track of the instant at which evaluation occurred. By default, this
-is the instant at which the result was created. To override the evaluated-at:
+is the instant at which the result was created. To set a
+specific instant for when evaluation occurred:
 
 ```clojure
 (require '[salutem.core :as salutem])
