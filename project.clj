@@ -48,22 +48,26 @@
               [~(str (System/getProperty "user.dir") "/config/linter.clj")]}}
 
    :versions
-   {org.clojure/clojure         "1.10.3"
-    org.clojure/tools.trace     "0.7.11"
-    org.clojure/core.async      "1.2.603"
+   {org.clojure/clojure               "1.10.3"
+    org.clojure/tools.trace           "0.7.11"
+    org.clojure/core.async            "1.2.603"
 
-    io.logicblocks/cartus.core  "0.1.14"
-    io.logicblocks/cartus.null  "0.1.14"
-    io.logicblocks/cartus.test  "0.1.14"
+    io.logicblocks/cartus.core        "0.1.14"
+    io.logicblocks/cartus.null        "0.1.14"
+    io.logicblocks/cartus.test        "0.1.14"
 
-    tick                        "0.4.32"
+    tick                              "0.4.32"
 
-    nrepl                       "0.8.3"
+    nrepl                             "0.8.3"
 
-    eftest                      "0.5.9"
-    tortue/spy                  "2.9.0"
+    eftest                            "0.5.9"
+    tortue/spy                        "2.9.0"
 
-    io.logicblocks/salutem.core :version}}
+    com.h2database/h2                 "1.4.197"
+
+    com.github.seancorfield/next.jdbc "1.2.709"
+
+    io.logicblocks/salutem.core       :version}}
 
   :profiles
   {:shared
