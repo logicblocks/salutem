@@ -10,7 +10,7 @@
   :profiles
   {:shared
    ^{:pom-scope :test}
-   {:dependencies [[org.jooq/jooq "3.15.3"]]}}
+   {:dependencies [[org.jooq/jooq "_"]]}}
 
   :test-paths ["test/shared"
                "test/unit"

@@ -52,9 +52,9 @@
     org.clojure/tools.trace           "0.7.11"
     org.clojure/core.async            "1.2.603"
 
-    io.logicblocks/cartus.core        "0.1.14"
-    io.logicblocks/cartus.null        "0.1.14"
-    io.logicblocks/cartus.test        "0.1.14"
+    io.logicblocks/cartus.core        "0.1.15-RC4"
+    io.logicblocks/cartus.null        "0.1.15-RC4"
+    io.logicblocks/cartus.test        "0.1.15-RC4"
 
     tick                              "0.4.32"
 
@@ -63,7 +63,7 @@
     eftest                            "0.5.9"
     tortue/spy                        "2.9.0"
 
-    com.h2database/h2                 "1.4.197"
+    org.jooq/jooq                     "3.15.3"
 
     com.github.seancorfield/next.jdbc "1.2.709"
 

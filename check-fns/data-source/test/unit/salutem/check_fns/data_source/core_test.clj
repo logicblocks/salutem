@@ -2,12 +2,16 @@
   (:require
    [clojure.test :refer :all]
 
+   [cartus.test :as ct]
+
    [salutem.core :as salutem]
    [salutem.check-fns.data-source.core :as scfds]
 
    [salutem.test.support.jdbc :as jdbc])
   (:import
    [java.sql SQLException SQLTimeoutException]))
+
+(declare logged?)
 
 (deftest data-source-check-fn-returns-healthy-when-default-query-successful
   (let [data-source
@@ -206,3 +210,128 @@
       (is (salutem/unhealthy? result))
       (is (= IllegalArgumentException (:type result)))
       (is (= "Weird argument..." (:error result))))))
+
+(deftest data-source-check-fn-logs-on-start-when-logger-in-context
+  (let [logger (ct/logger)
+        context {:logger logger}
+
+        data-source
+        (jdbc/mock-data-source
+          (jdbc/mock-connection
+            (fn [{:keys [sql]}]
+              (if (= "SELECT 1 AS up;" sql)
+                [[1 [{:up 1}]]]
+                (throw (SQLException. (str "Unexpected query: " sql)))))))
+
+        check-fn (scfds/data-source-check-fn data-source)
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (check-fn context result-cb)
+
+    (deref result-promise 500 nil)
+
+    (is (logged? logger
+          {:context {:query "SELECT 1 AS up;"}
+           :level   :info
+           :type    :salutem.check-fns.data-source/check.starting}))))
+
+(deftest data-source-check-fn-logs-on-success-when-logger-in-context
+  (let [logger (ct/logger)
+        context {:logger logger}
+
+        data-source
+        (jdbc/mock-data-source
+          (jdbc/mock-connection
+            (fn [{:keys [sql]}]
+              (if (= "SELECT 1 AS up;" sql)
+                [[1 [{:up 1}]]]
+                (throw (SQLException. (str "Unexpected query: " sql)))))))
+
+        check-fn (scfds/data-source-check-fn data-source)
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (check-fn context result-cb)
+
+    (deref result-promise 500 nil)
+
+    (is (logged? logger
+          {:level :info
+           :type  :salutem.check-fns.data-source/check.successful}))))
+
+(deftest data-source-check-fn-logs-on-sql-exception-when-logger-in-context
+  (let [logger (ct/logger)
+        context {:logger logger}
+
+        exception (SQLException. "Something went wrong.")
+
+        data-source
+        (jdbc/mock-data-source
+          (jdbc/mock-connection
+            (fn [_] (throw exception))))
+
+        check-fn (scfds/data-source-check-fn data-source)
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (check-fn context result-cb)
+
+    (deref result-promise 500 nil)
+
+    (is (logged? logger
+          {:context   {:reason :threw-exception}
+           :exception exception
+           :level     :warn
+           :type      :salutem.check-fns.data-source/check.failed}))))
+
+(deftest
+  data-source-check-fn-logs-on-sql-timeout-exception-when-logger-in-context
+  (let [logger (ct/logger)
+        context {:logger logger}
+
+        exception (SQLTimeoutException. "Something timed out.")
+
+        data-source
+        (jdbc/mock-data-source
+          (jdbc/mock-connection
+            (fn [_] (throw exception))))
+
+        check-fn (scfds/data-source-check-fn data-source)
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (check-fn context result-cb)
+
+    (deref result-promise 500 nil)
+
+    (is (logged? logger
+          {:context   {:reason :timed-out}
+           :exception exception
+           :level     :warn
+           :type      :salutem.check-fns.data-source/check.failed}))))
+
+(deftest data-source-check-fn-logs-on-other-exception-when-logger-in-context
+  (let [logger (ct/logger)
+        context {:logger logger}
+
+        exception (IllegalArgumentException. "Something else happened.")
+
+        data-source
+        (jdbc/mock-data-source
+          (jdbc/mock-connection
+            (fn [_] (throw exception))))
+
+        check-fn (scfds/data-source-check-fn data-source)
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (check-fn context result-cb)
+
+    (deref result-promise 500 nil)
+
+    (is (logged? logger
+          {:context   {:reason :threw-exception}
+           :exception exception
+           :level     :warn
+           :type      :salutem.check-fns.data-source/check.failed}))))
