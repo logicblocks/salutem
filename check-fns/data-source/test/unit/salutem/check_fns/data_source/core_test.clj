@@ -76,7 +76,7 @@
             (fn [_] (throw exception))))
 
         check-fn (scfds/data-source-check-fn data-source
-                   {:query "SELECT version();"})
+                   {:query-sql-params ["SELECT version();"]})
         context {}
         result-promise (promise)
         result-cb (partial deliver result-promise)]
@@ -97,7 +97,7 @@
                 (throw (SQLException. (str "Unexpected query: " sql)))))))
 
         check-fn (scfds/data-source-check-fn data-source
-                   {:query "SELECT version();"})
+                   {:query-sql-params ["SELECT version();"]})
         context {}
         result-promise (promise)
         result-cb (partial deliver result-promise)]
@@ -118,14 +118,15 @@
 
         check-fn
         (scfds/data-source-check-fn data-source
-          {:query "SELECT version();"
-           :success-result-fn
-           (fn [query-result]
+          {:query-sql-params
+           ["SELECT version();"]
+           :query-results-result-fn
+           (fn [query-results]
              (let [version
                    (second
                      (re-matches
                        #".*?(\d+\.\d+).*?"
-                       (:version query-result)))]
+                       (:version (first query-results))))]
                (salutem/healthy
                  {:version version})))})
         context {}
@@ -162,7 +163,7 @@
       (is (= "Something went wrong..." (:error result))))))
 
 (deftest
-  data-source-check-fn-uses-supplied-exception-fn-on-sql-timeout-exception
+ data-source-check-fn-uses-supplied-exception-fn-on-sql-timeout-exception
   (let [exception (SQLTimeoutException. "Timed out...")
         data-source
         (jdbc/mock-data-source
@@ -187,7 +188,7 @@
       (is (= "Timed out..." (:error result))))))
 
 (deftest
-  data-source-check-fn-uses-supplied-exception-fn-on-other-exceptions
+ data-source-check-fn-uses-supplied-exception-fn-on-other-exceptions
   (let [exception (IllegalArgumentException. "Weird argument...")
         data-source
         (jdbc/mock-data-source
@@ -232,7 +233,7 @@
     (deref result-promise 500 nil)
 
     (is (logged? logger
-          {:context {:query "SELECT 1 AS up;"}
+          {:context {:query-sql-params ["SELECT 1 AS up;"]}
            :level   :info
            :type    :salutem.check-fns.data-source/check.starting}))))
 
@@ -286,7 +287,7 @@
            :type      :salutem.check-fns.data-source/check.failed}))))
 
 (deftest
-  data-source-check-fn-logs-on-sql-timeout-exception-when-logger-in-context
+ data-source-check-fn-logs-on-sql-timeout-exception-when-logger-in-context
   (let [logger (ct/logger)
         context {:logger logger}
 

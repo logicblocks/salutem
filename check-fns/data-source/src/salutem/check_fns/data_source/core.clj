@@ -17,12 +17,13 @@
 (defn data-source-check-fn
   ([data-source] (data-source-check-fn data-source {}))
   ([data-source
-    {:keys [query success-result-fn exception-result-fn]
-     :or   {query
-            "SELECT 1 AS up;"
+    {:keys [query-sql-params query-results-result-fn exception-result-fn]
+     :or   {query-sql-params
+            ["SELECT 1 AS up;"]
 
-            success-result-fn
-            salutem/healthy
+            query-results-result-fn
+            (fn [results]
+              (salutem/healthy (first results)))
 
             exception-result-fn
             (fn [exception]
@@ -34,13 +35,13 @@
        (future
          (try
            (log/info logger :salutem.check-fns.data-source/check.starting
-             {:query query})
-           (let [result
-                 (jdbc/execute-one! data-source [query]
+             {:query-sql-params query-sql-params})
+           (let [results
+                 (jdbc/execute! data-source query-sql-params
                    {:builder-fn jdbc-rs/as-unqualified-kebab-maps})]
              (log/info logger :salutem.check-fns.data-source/check.successful)
              (result-cb
-               (success-result-fn result)))
+               (query-results-result-fn results)))
            (catch Exception exception
              (log/warn logger :salutem.check-fns.data-source/check.failed
                {:reason (failure-reason exception)}
