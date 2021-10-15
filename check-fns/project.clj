@@ -1,8 +1,10 @@
-(defproject io.logicblocks/salutem.check-fns "0.1.7-RC1"
+(defproject io.logicblocks/salutem.check-fns "0.1.7-RC2"
   :description "A set of standard check functions for salutem."
 
   :plugins [[lein-modules "0.3.11"]]
 
-  :test-paths ["test/shared"
-               "test/unit"
-               "test/performance"])
+  :dependencies [[io.logicblocks/salutem.check-fns.data-source :version]]
+
+  :source-paths ^:replace ["src"]
+  :test-paths ^:replace []
+  :resource-paths ^:replace [])

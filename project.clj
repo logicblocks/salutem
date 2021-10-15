@@ -21,9 +21,10 @@
              {"releases"  {:url "https://repo.clojars.org" :creds :gpg}
               "snapshots" {:url "https://repo.clojars.org" :creds :gpg}}
 
-    :plugins [[lein-cloverage "1.1.2"]
+    :plugins [[fipp "0.6.24"]
+              [lein-cloverage "1.1.2"]
               [lein-shell "0.5.0"]
-              [lein-pprint "1.3.2"]
+              [lein-cprint "1.3.3"]
               [lein-ancient "0.6.15"]
               [lein-eftest "0.5.9"]
               [lein-cljfmt "0.7.0"]
@@ -66,6 +67,10 @@
     org.jooq/jooq                     "3.15.3"
 
     com.github.seancorfield/next.jdbc "1.2.709"
+
+    clj-http                          "3.12.3"
+
+    clj-http-fake                     "1.0.3"
 
     io.logicblocks/salutem.core       :version}}
 
@@ -146,9 +151,8 @@
      ["vcs" "push"]]}}
 
   :source-paths []
-  :test-paths ["test/shared"
-               "test/unit"
-               "test/performance"]
+  :test-paths []
+  :resource-paths []
 
   :codox
   {:namespaces  [#"^salutem\."]
