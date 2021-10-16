@@ -137,11 +137,16 @@ namespace :library do
       profile: 'unit')
 
     RakeLeiningen.define_test_task(
+      name: :integration,
+      type: 'integration',
+      profile: 'integration')
+
+    RakeLeiningen.define_test_task(
       name: :performance,
       type: 'performance',
       profile: 'performance')
 
-    task :all => [:unit, :performance]
+    task :all => [:unit, :integration, :performance]
   end
 
   namespace :publish do

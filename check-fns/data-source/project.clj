@@ -13,5 +13,4 @@
    {:dependencies [[org.jooq/jooq "_"]]}}
 
   :test-paths ["test/shared"
-               "test/unit"
-               "test/performance"])
+               "test/unit"])

@@ -71,6 +71,9 @@
     clj-http                          "3.12.3"
 
     clj-http-fake                     "1.0.3"
+    kelveden/clj-wiremock             "1.7.0"
+
+    org.slf4j/slf4j-nop               "1.7.30"
 
     io.logicblocks/salutem.core       :version}}
 
@@ -94,6 +97,10 @@
    :unit
    [:shared {:test-paths ^:replace ["test/shared"
                                     "test/unit"]}]
+
+   :integration
+   [:shared {:test-paths ^:replace ["test/shared"
+                                    "test/integration"]}]
 
    :performance
    [:shared {:test-paths ^:replace ["test/shared"

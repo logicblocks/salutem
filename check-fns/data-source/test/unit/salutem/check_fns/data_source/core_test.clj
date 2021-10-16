@@ -163,7 +163,7 @@
       (is (= "Something went wrong..." (:error result))))))
 
 (deftest
- data-source-check-fn-uses-supplied-exception-fn-on-sql-timeout-exception
+  data-source-check-fn-uses-supplied-exception-fn-on-sql-timeout-exception
   (let [exception (SQLTimeoutException. "Timed out...")
         data-source
         (jdbc/mock-data-source
@@ -188,7 +188,7 @@
       (is (= "Timed out..." (:error result))))))
 
 (deftest
- data-source-check-fn-uses-supplied-exception-fn-on-other-exceptions
+  data-source-check-fn-uses-supplied-exception-fn-on-other-exceptions
   (let [exception (IllegalArgumentException. "Weird argument...")
         data-source
         (jdbc/mock-data-source
@@ -287,7 +287,7 @@
            :type      :salutem.check-fns.data-source/check.failed}))))
 
 (deftest
- data-source-check-fn-logs-on-sql-timeout-exception-when-logger-in-context
+  data-source-check-fn-logs-on-sql-timeout-exception-when-logger-in-context
   (let [logger (ct/logger)
         context {:logger logger}
 

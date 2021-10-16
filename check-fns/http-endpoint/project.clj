@@ -10,11 +10,13 @@
   :profiles
   {:shared
    ^{:pom-scope :test}
-   {:dependencies [[clj-http-fake "_"]]}
+   {:dependencies [[clj-http-fake "_"]
+                   [kelveden/clj-wiremock "_"]
+                   [org.slf4j/slf4j-nop "_"]]}
 
    :unit
    [:shared {:eftest {:multithread? false}}]}
 
   :test-paths ["test/shared"
                "test/unit"
-               "test/performance"])
+               "test/integration"])

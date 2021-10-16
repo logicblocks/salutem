@@ -7,7 +7,8 @@
    [cartus.null :as cn]
 
    [salutem.core :as salutem])
-  (:import [java.sql SQLTimeoutException]))
+  (:import
+   [java.sql SQLTimeoutException]))
 
 (defn failure-reason [exception]
   (if (= (class exception) SQLTimeoutException)
@@ -17,7 +18,9 @@
 (defn data-source-check-fn
   ([data-source] (data-source-check-fn data-source {}))
   ([data-source
-    {:keys [query-sql-params query-results-result-fn exception-result-fn]
+    {:keys [query-sql-params
+            query-results-result-fn
+            exception-result-fn]
      :or   {query-sql-params
             ["SELECT 1 AS up;"]
 
