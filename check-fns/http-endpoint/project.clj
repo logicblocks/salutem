@@ -1,4 +1,4 @@
-(defproject io.logicblocks/salutem.check-fns.http-endpoint "0.1.7-RC2"
+(defproject io.logicblocks/salutem.check-fns.http-endpoint "0.1.7-RC3"
   :description "An HTTP endpoint check function for salutem."
 
   :plugins [[lein-modules "0.3.11"]]
