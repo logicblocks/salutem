@@ -3,6 +3,8 @@
    [clojure.test :refer :all]
    [clojure.set :as set]
 
+   [cartus.test :as ct]
+
    [clj-http.fake :as http]
 
    [salutem.core :as salutem]
@@ -10,6 +12,8 @@
   (:import
    [org.apache.http.conn ConnectTimeoutException]
    [java.net SocketTimeoutException ConnectException]))
+
+(declare logged?)
 
 (def all-status-codes
   (into #{} (range 100 600)))
@@ -82,18 +86,15 @@
       (is (salutem/healthy? result)))))
 
 (deftest http-endpoint-check-fn-uses-get-as-method-by-default
-  (let [context {:access-key "123"}
-        endpoint-url-fn
-        (fn [context]
-          (str "http://service.example.com/ping?access_key="
-            (:access-key context)))
+  (let [context {}
+        endpoint-url "http://service.example.com/ping"
 
-        check-fn (scfhe/http-endpoint-check-fn endpoint-url-fn)
+        check-fn (scfhe/http-endpoint-check-fn endpoint-url)
 
         result-promise (promise)
         result-cb (partial deliver result-promise)]
     (http/with-global-fake-routes-in-isolation
-      {"http://service.example.com/ping?access_key=123"
+      {"http://service.example.com/ping"
        {:get (fn [_] {:status 200})}}
       (check-fn context result-cb))
 
@@ -101,19 +102,33 @@
       (is (salutem/healthy? result)))))
 
 (deftest http-endpoint-check-fn-uses-supplied-method-when-provided
-  (let [context {:access-key "123"}
-        endpoint-url-fn
-        (fn [context]
-          (str "http://service.example.com/ping?access_key="
-            (:access-key context)))
+  (let [context {}
+        endpoint-url "http://service.example.com/ping"
 
-        check-fn (scfhe/http-endpoint-check-fn endpoint-url-fn
+        check-fn (scfhe/http-endpoint-check-fn endpoint-url
                    {:method :head})
 
         result-promise (promise)
         result-cb (partial deliver result-promise)]
     (http/with-global-fake-routes-in-isolation
-      {"http://service.example.com/ping?access_key=123"
+      {"http://service.example.com/ping"
+       {:head (fn [_] {:status 200})}}
+      (check-fn context result-cb))
+
+    (let [result (deref result-promise 500 nil)]
+      (is (salutem/healthy? result)))))
+
+(deftest http-endpoint-check-fn-uses-supplied-method-fn-when-provided
+  (let [context {:method :head}
+        endpoint-url "http://service.example.com/ping"
+
+        check-fn (scfhe/http-endpoint-check-fn endpoint-url
+                   {:method (fn [context] (:method context))})
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (http/with-global-fake-routes-in-isolation
+      {"http://service.example.com/ping"
        {:head (fn [_] {:status 200})}}
       (check-fn context result-cb))
 
@@ -121,18 +136,15 @@
       (is (salutem/healthy? result)))))
 
 (deftest http-endpoint-check-fn-uses-empty-body-by-default
-  (let [context {:access-key "123"}
-        endpoint-url-fn
-        (fn [context]
-          (str "http://service.example.com/ping?access_key="
-            (:access-key context)))
+  (let [context {}
+        endpoint-url "http://service.example.com/ping"
 
-        check-fn (scfhe/http-endpoint-check-fn endpoint-url-fn)
+        check-fn (scfhe/http-endpoint-check-fn endpoint-url)
 
         result-promise (promise)
         result-cb (partial deliver result-promise)]
     (http/with-global-fake-routes-in-isolation
-      {"http://service.example.com/ping?access_key=123"
+      {"http://service.example.com/ping"
        (fn [request]
          (if (nil? (:body request))
            {:status 200}
@@ -143,7 +155,7 @@
       (is (salutem/healthy? result)))))
 
 (deftest http-endpoint-check-fn-uses-supplied-body-when-provided
-  (let [context {:access-key "123"}
+  (let [context {}
         endpoint-url "http://service.example.com/ping"
 
         check-fn (scfhe/http-endpoint-check-fn endpoint-url
@@ -158,6 +170,203 @@
            {:status 200}
            (throw (IllegalStateException.
                     "Expected supplied body but got something else."))))}
+      (check-fn context result-cb))
+
+    (let [result (deref result-promise 500 nil)]
+      (is (salutem/healthy? result)))))
+
+(deftest http-endpoint-check-fn-uses-supplied-body-fn-when-provided
+  (let [context {:access-key "123"}
+        endpoint-url "http://service.example.com/ping"
+
+        check-fn (scfhe/http-endpoint-check-fn endpoint-url
+                   {:body (fn [context]
+                            (str "access_key = "
+                              (:access-key context)))})
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (http/with-global-fake-routes-in-isolation
+      {"http://service.example.com/ping"
+       (fn [request]
+         (if (= "access_key = 123" (slurp (:body request)))
+           {:status 200}
+           (throw (IllegalStateException.
+                    "Expected supplied body but got something else."))))}
+      (check-fn context result-cb))
+
+    (let [result (deref result-promise 500 nil)]
+      (is (salutem/healthy? result)))))
+
+(deftest http-endpoint-check-fn-passes-no-headers-by-default
+  (let [context {}
+        endpoint-url "http://service.example.com/ping"
+
+        check-fn (scfhe/http-endpoint-check-fn endpoint-url)
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (http/with-global-fake-routes-in-isolation
+      {"http://service.example.com/ping"
+       (fn [request]
+         ; accept-encoding added by default
+         (if (empty? (dissoc (:headers request) "accept-encoding"))
+           {:status 200}
+           (throw (IllegalStateException.
+                    "Expected no headers but got some."))))}
+      (check-fn context result-cb))
+
+    (let [result (deref result-promise 500 nil)]
+      (is (salutem/healthy? result)))))
+
+(deftest http-endpoint-check-fn-passes-supplied-headers-when-provided
+  (let [context {}
+        endpoint-url "http://service.example.com/ping"
+
+        check-fn (scfhe/http-endpoint-check-fn endpoint-url
+                   {:headers {"x-important-header" 56}})
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (http/with-global-fake-routes-in-isolation
+      {"http://service.example.com/ping"
+       (fn [request]
+         ; accept-encoding added by default
+         (if (= 56 (get-in request [:headers "x-important-header"]))
+           {:status 200}
+           (throw (IllegalStateException.
+                    "Expected no headers but got some."))))}
+      (check-fn context result-cb))
+
+    (let [result (deref result-promise 500 nil)]
+      (is (salutem/healthy? result)))))
+
+(deftest http-endpoint-check-fn-passes-supplied-headers-fn-when-provided
+  (let [context {:access-key "123"}
+        endpoint-url "http://service.example.com/ping"
+
+        check-fn (scfhe/http-endpoint-check-fn endpoint-url
+                   {:headers
+                    (fn [context]
+                      {"x-access-key" (:access-key context)})})
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (http/with-global-fake-routes-in-isolation
+      {"http://service.example.com/ping"
+       (fn [request]
+         ; accept-encoding added by default
+         (if (= (:access-key context)
+               (get-in request [:headers "x-access-key"]))
+           {:status 200}
+           (throw (IllegalStateException.
+                    "Expected no headers but got some."))))}
+      (check-fn context result-cb))
+
+    (let [result (deref result-promise 500 nil)]
+      (is (salutem/healthy? result)))))
+
+(deftest http-endpoint-check-fn-passes-no-query-params-by-default
+  (let [context {}
+        endpoint-url "http://service.example.com/ping"
+
+        check-fn (scfhe/http-endpoint-check-fn endpoint-url)
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (http/with-global-fake-routes-in-isolation
+      {"http://service.example.com/ping"
+       (fn [request]
+         (if (nil? (get request :query-params))
+           {:status 200}
+           (throw (IllegalStateException.
+                    "Expected supplied query-params."))))}
+      (check-fn context result-cb))
+
+    (let [result (deref result-promise 500 nil)]
+      (is (salutem/healthy? result)))))
+
+(deftest http-endpoint-check-fn-passes-supplied-query-params-when-provided
+  (let [context {}
+        endpoint-url "http://service.example.com/ping"
+
+        check-fn (scfhe/http-endpoint-check-fn endpoint-url
+                   {:query-params {:a 1}})
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (http/with-global-fake-routes-in-isolation
+      {"http://service.example.com/ping?a=1"
+       (fn [_] {:status 200})}
+      (check-fn context result-cb))
+
+    (let [result (deref result-promise 500 nil)]
+      (is (salutem/healthy? result)))))
+
+(deftest http-endpoint-check-fn-passes-supplied-query-params-fn-when-provided
+  (let [context {:access-key "123"}
+        endpoint-url "http://service.example.com/ping"
+
+        check-fn (scfhe/http-endpoint-check-fn endpoint-url
+                   {:query-params
+                    (fn [context]
+                      {:access-key (:access-key context)})})
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (http/with-global-fake-routes-in-isolation
+      {"http://service.example.com/ping?access-key=123"
+       (fn [_] {:status 200})}
+      (check-fn context result-cb))
+
+    (let [result (deref result-promise 500 nil)]
+      (is (salutem/healthy? result)))))
+
+(deftest http-endpoint-check-fn-passes-additional-options-map
+  (let [context {}
+        endpoint-url "http://service.example.com/ping"
+
+        check-fn (scfhe/http-endpoint-check-fn endpoint-url
+                   {:opts {:max-redirects     5
+                           :redirect-strategy :graceful}})
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (http/with-global-fake-routes-in-isolation
+      {"http://service.example.com/ping"
+       (fn [request]
+         (if (and
+               (= 5 (get request :max-redirects))
+               (= :graceful (get request :redirect-strategy)))
+           {:status 200}
+           (throw (IllegalStateException.
+                    "Expected opts."))))}
+      (check-fn context result-cb))
+
+    (let [result (deref result-promise 500 nil)]
+      (is (salutem/healthy? result)))))
+
+(deftest http-endpoint-check-fn-passes-additional-options-from-fn
+  (let [context {:max-redirects 5}
+        endpoint-url "http://service.example.com/ping"
+
+        check-fn (scfhe/http-endpoint-check-fn endpoint-url
+                   {:opts
+                    (fn [context]
+                      {:max-redirects     (:max-redirects context)
+                       :redirect-strategy :graceful})})
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (http/with-global-fake-routes-in-isolation
+      {"http://service.example.com/ping"
+       (fn [request]
+         (if (and
+               (= 5 (get request :max-redirects))
+               (= :graceful (get request :redirect-strategy)))
+           {:status 200}
+           (throw (IllegalStateException.
+                    "Expected opts."))))}
       (check-fn context result-cb))
 
     (let [result (deref result-promise 500 nil)]
@@ -322,5 +531,111 @@
           (is (= (.getMessage ^Exception standard-exception) (:message result)))
           (is (= :runtime-value (:important result))))))))
 
-; headers
-; logs
+(deftest http-endpoint-check-fn-logs-on-start-when-logger-in-context
+  (let [logger (ct/logger)
+        context {:logger logger}
+
+        url "http://service.example.com/ping"
+
+        method :head
+        query-params {:caller "thing-service"}
+        headers {"x-important-header" 56}
+        body "ping"
+
+        check-fn (scfhe/http-endpoint-check-fn url
+                   {:method       method
+                    :query-params query-params
+                    :headers      headers
+                    :body         body})
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (http/with-global-fake-routes-in-isolation
+      {url
+       (fn [_] {:status 200})}
+      (check-fn context result-cb))
+
+    (deref result-promise 500 nil)
+
+    (is (logged? logger
+          {:context {:url          url
+                     :method       method
+                     :query-params query-params
+                     :headers      headers
+                     :body         body}
+           :level   :info
+           :type    :salutem.check-fns.http-endpoint/check.starting}))))
+
+(deftest http-endpoint-check-fn-logs-on-response-when-logger-in-context
+  (let [logger (ct/logger)
+        context {:logger logger}
+
+        url "http://service.example.com/ping"
+
+        check-fn (scfhe/http-endpoint-check-fn url)
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (http/with-global-fake-routes-in-isolation
+      {url
+       (fn [_] {:status 200})}
+      (check-fn context result-cb))
+
+    (deref result-promise 500 nil)
+
+    (is (logged? logger
+          {:level   :info
+           :type    :salutem.check-fns.http-endpoint/check.successful}))))
+
+(deftest
+  http-endpoint-check-fn-logs-on-timeout-exceptions-when-logger-in-context
+  (let [logger (ct/logger)
+        context {:logger logger}
+
+        endpoint-url "http://service.example.com/ping"
+
+        check-fn (scfhe/http-endpoint-check-fn endpoint-url)]
+    (doseq [timeout-exception
+            [(ConnectTimeoutException. "We're out of time.")
+             (SocketTimeoutException. "We're out of time.")
+             (ConnectException. "Timeout when connecting.")]]
+      (let [result-promise (promise)
+            result-cb (partial deliver result-promise)]
+        (http/with-global-fake-routes-in-isolation
+          {endpoint-url
+           (fn [_] (throw timeout-exception))}
+          (check-fn context result-cb))
+
+        (deref result-promise 500 nil)
+
+        (is (logged? logger
+              {:context   {:reason :timed-out}
+               :exception timeout-exception
+               :level     :warn
+               :type      :salutem.check-fns.http-endpoint/check.failed}))))))
+
+(deftest
+  http-endpoint-check-fn-logs-on-other-exceptions-when-logger-in-context
+  (let [logger (ct/logger)
+        context {:logger logger}
+
+        endpoint-url "http://service.example.com/ping"
+
+        check-fn (scfhe/http-endpoint-check-fn endpoint-url)]
+    (doseq [standard-exception
+            [(IllegalArgumentException. "Well that's strange.")
+             (ConnectException. "Connection refused.")]]
+      (let [result-promise (promise)
+            result-cb (partial deliver result-promise)]
+        (http/with-global-fake-routes-in-isolation
+          {endpoint-url
+           (fn [_] (throw standard-exception))}
+          (check-fn context result-cb))
+
+        (deref result-promise 500 nil)
+
+        (is (logged? logger
+              {:context   {:reason :threw-exception}
+               :exception standard-exception
+               :level     :warn
+               :type      :salutem.check-fns.http-endpoint/check.failed}))))))
