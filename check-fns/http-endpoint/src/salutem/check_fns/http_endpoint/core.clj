@@ -68,39 +68,40 @@
                 {:salutem/reason    (failure-reason exception)
                  :salutem/exception exception}))}}]
    (fn [context result-cb]
-     (let [logger (get context :logger (cn/logger))
-           endpoint-params
-           {:url          (resolve-if-fn url context)
-            :method       (resolve-if-fn method context)
-            :body         (resolve-if-fn body context)
-            :headers      (resolve-if-fn headers context)
-            :query-params (resolve-if-fn query-params context)}]
+     (let [logger (get context :logger (cn/logger))]
        (try
-         (log/info logger :salutem.check-fns.http-endpoint/check.starting
-           endpoint-params)
-         (http/request
-           (merge
-             endpoint-params
-             {:throw-exceptions false}
-             (resolve-if-fn opts context)
-             {:async?             true
-              :connection-timeout (time/millis connection-timeout)
-              :socket-timeout     (time/millis socket-timeout)
-              :connection-request-timeout
-              (time/millis connection-request-timeout)
-              :connection-manager connection-manager})
-           (fn [response]
-             (log/info logger :salutem.check-fns.http-endpoint/check.successful)
-             (result-cb
-               (response-result-fn
-                 context response)))
-           (fn [exception]
-             (log/warn logger :salutem.check-fns.http-endpoint/check.failed
-               {:reason (failure-reason exception)}
-               {:exception exception})
-             (result-cb
-               (exception-result-fn
-                 context exception))))
+         (let [endpoint-params
+               {:url          (resolve-if-fn url context)
+                :method       (resolve-if-fn method context)
+                :body         (resolve-if-fn body context)
+                :headers      (resolve-if-fn headers context)
+                :query-params (resolve-if-fn query-params context)}]
+           (log/info logger :salutem.check-fns.http-endpoint/check.starting
+             endpoint-params)
+           (http/request
+             (merge
+               endpoint-params
+               {:throw-exceptions false}
+               (resolve-if-fn opts context)
+               {:async?             true
+                :connection-timeout (time/millis connection-timeout)
+                :socket-timeout     (time/millis socket-timeout)
+                :connection-request-timeout
+                (time/millis connection-request-timeout)
+                :connection-manager connection-manager})
+             (fn [response]
+               (log/info logger
+                 :salutem.check-fns.http-endpoint/check.successful)
+               (result-cb
+                 (response-result-fn
+                   context response)))
+             (fn [exception]
+               (log/warn logger :salutem.check-fns.http-endpoint/check.failed
+                 {:reason (failure-reason exception)}
+                 {:exception exception})
+               (result-cb
+                 (exception-result-fn
+                   context exception)))))
          (catch Exception exception
            (log/warn logger :salutem.check-fns.http-endpoint/check.failed
              {:reason (failure-reason exception)}
