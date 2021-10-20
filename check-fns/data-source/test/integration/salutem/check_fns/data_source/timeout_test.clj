@@ -37,7 +37,7 @@
           result-cb (partial deliver result-promise)]
       (check-fn context result-cb)
 
-      (let [result (deref result-promise 6000 nil)]
+      (let [result (deref result-promise 7500 nil)]
         (is (salutem/unhealthy? result))
         (is (= :timed-out (:salutem/reason result)))
         (is (not (nil? (:salutem/exception result))))))))
@@ -62,7 +62,7 @@
           result-cb (partial deliver result-promise)]
       (check-fn context result-cb)
 
-      (let [result (deref result-promise 2000 nil)]
+      (let [result (deref result-promise 3000 nil)]
         (is (salutem/unhealthy? result))
         (is (= :timed-out (:salutem/reason result)))
         (is (not (nil? (:salutem/exception result))))))))

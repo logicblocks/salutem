@@ -1,6 +1,8 @@
 (defproject io.logicblocks/salutem.check-fns.data-source "0.1.7-RC7"
   :description "A data source check function for salutem."
 
+  :scm {:dir "../.."}
+
   :plugins [[lein-modules "0.3.11"]]
 
   :dependencies [[io.logicblocks/salutem.core :version]

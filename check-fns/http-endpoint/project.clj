@@ -1,6 +1,8 @@
 (defproject io.logicblocks/salutem.check-fns.http-endpoint "0.1.7-RC7"
   :description "An HTTP endpoint check function for salutem."
 
+  :scm {:dir "../.."}
+
   :plugins [[lein-modules "0.3.11"]]
 
   :dependencies [[io.logicblocks/salutem.core :version]

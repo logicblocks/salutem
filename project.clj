@@ -14,7 +14,8 @@
              "https://github.com/logicblocks/salutem"
 
     :scm
-             {:name "git"
+             {:dir ".."
+              :name "git"
               :url  "https://github.com/logicblocks/salutem"}
 
     :license
