@@ -30,7 +30,7 @@
         result-cb (partial deliver result-promise)]
     (check-fn context result-cb)
 
-    (let [result (deref result-promise 500 nil)]
+    (let [result (deref result-promise 1000 nil)]
       (is (salutem/healthy? result))
       (is (= 1 (:up result))))))
 
@@ -47,7 +47,7 @@
         result-cb (partial deliver result-promise)]
     (check-fn context result-cb)
 
-    (let [result (deref result-promise 500 nil)]
+    (let [result (deref result-promise 1000 nil)]
       (is (salutem/unhealthy? result))
       (is (= :threw-exception (:salutem/reason result)))
       (is (= exception (:salutem/exception result))))))
@@ -65,7 +65,7 @@
         result-cb (partial deliver result-promise)]
     (check-fn context result-cb)
 
-    (let [result (deref result-promise 500 nil)]
+    (let [result (deref result-promise 1000 nil)]
       (is (salutem/unhealthy? result))
       (is (= :timed-out (:salutem/reason result)))
       (is (= exception (:salutem/exception result))))))
@@ -84,7 +84,7 @@
         result-cb (partial deliver result-promise)]
     (check-fn context result-cb)
 
-    (let [result (deref result-promise 500 nil)]
+    (let [result (deref result-promise 1000 nil)]
       (is (salutem/unhealthy? result))
       (is (= :threw-exception (:salutem/reason result)))
       (is (= exception (:salutem/exception result))))))
@@ -105,7 +105,7 @@
         result-cb (partial deliver result-promise)]
     (check-fn context result-cb)
 
-    (let [result (deref result-promise 500 nil)]
+    (let [result (deref result-promise 1000 nil)]
       (is (salutem/healthy? result))
       (is (= "PostgreSQL 14.0" (:version result))))))
 
@@ -133,7 +133,7 @@
         result-cb (partial deliver result-promise)]
     (check-fn context result-cb)
 
-    (let [result (deref result-promise 500 nil)]
+    (let [result (deref result-promise 1000 nil)]
       (is (salutem/healthy? result))
       (is (= 36 (:count result))))))
 
@@ -155,7 +155,7 @@
         result-cb (partial deliver result-promise)]
     (check-fn context result-cb)
 
-    (let [result (deref result-promise 500 nil)]
+    (let [result (deref result-promise 1000 nil)]
       (is (salutem/healthy? result))
       (is (= 1 (:test.namespace/up result))))))
 
@@ -181,7 +181,7 @@
         result-cb (partial deliver result-promise)]
     (check-fn context result-cb)
 
-    (let [result (deref result-promise 500 nil)]
+    (let [result (deref result-promise 1000 nil)]
       (is (salutem/healthy? result))
       (is (= 1 (:context.namespace/up result))))))
 
@@ -215,7 +215,7 @@
         result-cb (partial deliver result-promise)]
     (check-fn context result-cb)
 
-    (let [result (deref result-promise 500 nil)]
+    (let [result (deref result-promise 1000 nil)]
       (is (salutem/healthy? result))
       (is (= "14.0" (:version result)))
       (is (= "thing-service" (:caller result))))))
@@ -242,7 +242,7 @@
         result-cb (partial deliver result-promise)]
     (check-fn context result-cb)
 
-    (let [result (deref result-promise 500 nil)]
+    (let [result (deref result-promise 1000 nil)]
       (is (salutem/unhealthy? result))
       (is (= SQLException (:type result)))
       (is (= "Something went wrong..." (:error result)))
@@ -268,7 +268,7 @@
         result-cb (partial deliver result-promise)]
     (check-fn context result-cb)
 
-    (let [result (deref result-promise 500 nil)]
+    (let [result (deref result-promise 1000 nil)]
       (is (salutem/unhealthy? result))
       (is (= SQLTimeoutException (:type result)))
       (is (= "Timed out..." (:error result))))))
@@ -293,7 +293,7 @@
         result-cb (partial deliver result-promise)]
     (check-fn context result-cb)
 
-    (let [result (deref result-promise 500 nil)]
+    (let [result (deref result-promise 1000 nil)]
       (is (salutem/unhealthy? result))
       (is (= IllegalArgumentException (:type result)))
       (is (= "Weird argument..." (:error result))))))
@@ -316,7 +316,7 @@
         result-cb (partial deliver result-promise)]
     (check-fn context result-cb)
 
-    (deref result-promise 500 nil)
+    (deref result-promise 1000 nil)
 
     (is (logged? logger
           {:context {:query-sql-params ["SELECT 1 AS up;"]}
@@ -341,7 +341,7 @@
         result-cb (partial deliver result-promise)]
     (check-fn context result-cb)
 
-    (deref result-promise 500 nil)
+    (deref result-promise 1000 nil)
 
     (is (logged? logger
           {:level :info
@@ -364,7 +364,7 @@
         result-cb (partial deliver result-promise)]
     (check-fn context result-cb)
 
-    (deref result-promise 500 nil)
+    (deref result-promise 1000 nil)
 
     (is (logged? logger
           {:context   {:reason :threw-exception}
@@ -390,7 +390,7 @@
         result-cb (partial deliver result-promise)]
     (check-fn context result-cb)
 
-    (deref result-promise 500 nil)
+    (deref result-promise 1000 nil)
 
     (is (logged? logger
           {:context   {:reason :timed-out}
@@ -415,7 +415,7 @@
         result-cb (partial deliver result-promise)]
     (check-fn context result-cb)
 
-    (deref result-promise 500 nil)
+    (deref result-promise 1000 nil)
 
     (is (logged? logger
           {:context   {:reason :threw-exception}

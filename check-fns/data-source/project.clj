@@ -19,6 +19,9 @@
                    [com.h2database/h2 "_"]
                    [com.impossibl.pgjdbc-ng/pgjdbc-ng "0.8.9"]]}
 
+   :unit
+   {:eftest {:multithread? false}}
+
    :integration
    {:eftest {:multithread? false}}}
 
