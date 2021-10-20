@@ -220,6 +220,31 @@
       (is (= "14.0" (:version result)))
       (is (= "thing-service" (:caller result))))))
 
+(deftest data-source-check-fn-uses-supplied-failure-reason-fn
+  (let [context {}
+        exception (IllegalArgumentException. "Something went wrong...")
+
+        data-source
+        (jdbc/mock-data-source
+          (jdbc/mock-connection
+            (fn [_] (throw exception))))
+
+        check-fn
+        (scfds/data-source-check-fn data-source
+          {:failure-reason-fn
+           (fn [_ ^Exception exception]
+             (if (isa? (class exception) IllegalArgumentException)
+               :received-bad-argument
+               :threw-exception))})
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (check-fn context result-cb)
+
+    (let [result (deref result-promise 1000 nil)]
+      (is (salutem/unhealthy? result))
+      (is (= :received-bad-argument (:salutem/reason result))))))
+
 (deftest data-source-check-fn-uses-supplied-exception-fn-on-sql-exception
   (let [context {:caller "thing-service"}
         exception (SQLException. "Something went wrong...")
