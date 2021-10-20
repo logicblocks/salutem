@@ -5,6 +5,11 @@
 
   :dependencies [[io.logicblocks/salutem.core :version]
 
+                 [io.logicblocks/cartus.core "_"]
+                 [io.logicblocks/cartus.null "_"]
+
+                 [tick "_"]
+
                  [clj-http "_"]]
 
   :profiles

@@ -13,6 +13,10 @@
    {:url
              "https://github.com/logicblocks/salutem"
 
+    :scm
+             {:name "git"
+              :url  "https://github.com/logicblocks/salutem"}
+
     :license
              {:name "The MIT License"
               :url  "https://opensource.org/licenses/MIT"}
@@ -65,6 +69,7 @@
     tortue/spy                        "2.9.0"
 
     org.jooq/jooq                     "3.15.3"
+    com.h2database/h2                 "1.4.197"
 
     com.github.seancorfield/next.jdbc "1.2.709"
 
@@ -114,9 +119,15 @@
                     [io.logicblocks/cartus.core "_"]
                     [io.logicblocks/cartus.null "_"]
 
+                    [clj-http "_"]
+
+                    [com.github.seancorfield/next.jdbc "_"]
+
                     [tick "_"]]
 
-     :source-paths ["core/src"]}]
+     :source-paths ["core/src"
+                    "check-fns/data-source/src"
+                    "check-fns/http-endpoint/src"]}]
 
    :prerelease
    {:release-tasks

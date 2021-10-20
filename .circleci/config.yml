@@ -12,6 +12,11 @@ jobs:
     working_directory: ~/source
     docker:
       - image: ruby:2.7.2
+      - image: circleci/postgres:11.5-alpine
+        environment:
+          POSTGRES_DB: test
+          POSTGRES_PASSWORD: test-password
+          POSTGRES_USER: tester
     steps:
       - checkout
       - run: ./scripts/ci/common/install-openjdk.sh

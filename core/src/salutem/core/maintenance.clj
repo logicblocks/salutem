@@ -25,8 +25,8 @@
       should be periodically triggered.
     - `context`: a map containing arbitrary context required by checks
       in order to run and passed to the check functions as the first argument.
-    - `interval`: a [[duration]] describing the wait interval between refresh
-      triggers.
+    - `interval`: a [[salutem.core/duration]] describing the wait interval
+      between refresh triggers.
     - `trigger-channel`: the channel on which to send trigger messages.
     - `shutdown-channel`: an optional channel which when closed, closes the
       trigger channel; included in the map returned by the function; if not
@@ -391,8 +391,8 @@
      - `:context`: a map containing arbitrary context required by checks in
        order to run and passed to the check functions as the first
        argument; defaults to an empty map
-     - `:interval`: a [[duration]] describing the wait interval between
-       attempts to refresh the results in the registry; defaults to 200
+     - `:interval`: a [[salutem.core/duration]] describing the wait interval
+       between attempts to refresh the results in the registry; defaults to 200
        milliseconds
      - `:notification-callback-fns`: a sequence of arity-2 functions, with the
        first argument being a check and the second argument being a result,

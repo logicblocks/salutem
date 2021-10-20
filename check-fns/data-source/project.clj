@@ -5,12 +5,23 @@
 
   :dependencies [[io.logicblocks/salutem.core :version]
 
+                 [io.logicblocks/cartus.core "_"]
+                 [io.logicblocks/cartus.null "_"]
+
+                 [tick "_"]
+
                  [com.github.seancorfield/next.jdbc "_"]]
 
   :profiles
   {:shared
    ^{:pom-scope :test}
-   {:dependencies [[org.jooq/jooq "_"]]}}
+   {:dependencies [[org.jooq/jooq "_"]
+                   [com.h2database/h2 "_"]
+                   [com.impossibl.pgjdbc-ng/pgjdbc-ng "0.8.9"]]}
+
+   :integration
+   {:eftest {:multithread? false}}}
 
   :test-paths ["test/shared"
-               "test/unit"])
+               "test/unit"
+               "test/integration"])

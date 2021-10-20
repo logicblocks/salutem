@@ -1,4 +1,5 @@
 require 'rake_circle_ci'
+require 'rake_docker'
 require 'rake_github'
 require 'rake_gpg'
 require 'rake_leiningen'
@@ -7,12 +8,12 @@ require 'ruby_leiningen'
 require 'yaml'
 
 task :default => [
-    :'library:initialise',
-    :'library:check',
-    :'library:test:all'
+  :'library:initialise',
+  :'library:check',
+  :'library:test:all'
 ]
 
-RubyLeiningen::Commands.define_custom_command("modules")  do |config, opts|
+RubyLeiningen::Commands.define_custom_command("modules") do |config, opts|
   config.on_command_builder do |command|
     command = command.with_subcommand(opts[:command].to_s)
     command
@@ -84,7 +85,7 @@ RakeCircleCI.define_project_tasks(
   t.environment_variables = {
     ENCRYPTION_PASSPHRASE:
       File.read('config/secrets/ci/encryption.passphrase')
-      .chomp
+          .chomp
   }
   t.checkout_keys = []
   t.ssh_keys = [
@@ -139,7 +140,11 @@ namespace :library do
     RakeLeiningen.define_test_task(
       name: :integration,
       type: 'integration',
-      profile: 'integration')
+      profile: 'integration') do
+      unless ENV['CI'] == 'true'
+        Rake::Task['database:test:provision'].invoke
+      end
+    end
 
     RakeLeiningen.define_test_task(
       name: :performance,
@@ -157,5 +162,20 @@ namespace :library do
     RakeLeiningen.define_release_task(
       name: :release,
       profile: 'release')
+  end
+end
+
+namespace :database do
+  namespace :test do
+    RakeDocker.define_container_tasks(
+      container_name: 'salutem-test-database') do |t|
+      t.image = "postgres:11.5"
+      t.ports = ['5432:5432']
+      t.environment = %w[
+        POSTGRES_DB=test
+        POSTGRES_PASSWORD=test-password
+        POSTGRES_USER=tester
+      ]
+    end
   end
 end

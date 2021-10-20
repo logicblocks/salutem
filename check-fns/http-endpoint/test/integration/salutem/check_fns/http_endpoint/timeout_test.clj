@@ -1,4 +1,4 @@
-(ns salutem.check-fns.http-endpoint.core-test
+(ns salutem.check-fns.http-endpoint.timeout-test
   (:require
    [clojure.test :refer :all]
 
