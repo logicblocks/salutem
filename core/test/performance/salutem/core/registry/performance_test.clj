@@ -38,4 +38,4 @@
     ; 250 realtime checks as defined above running sequentially would take
     ; anywhere up to 50 seconds
     (is (t/< (t/between epoch (t/now))
-          (t/new-duration 2 :seconds)))))
+          (t/new-duration 4 :seconds)))))
