@@ -1,4 +1,4 @@
-(defproject io.logicblocks/salutem.check-fns "0.1.7-RC9"
+(defproject io.logicblocks/salutem.check-fns "0.1.7-RC10"
   :description "A set of standard check functions for salutem."
 
   :scm {:dir  ".."
