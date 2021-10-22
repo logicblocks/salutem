@@ -1,4 +1,4 @@
-(defproject io.logicblocks/salutem "0.1.7-RC7"
+(defproject io.logicblocks/salutem "0.1.7-RC8"
   :description "Parent for all salutem modules."
 
   :scm {:name "git"

@@ -1,4 +1,4 @@
-(defproject io.logicblocks/salutem.core "0.1.7-RC7"
+(defproject io.logicblocks/salutem.core "0.1.7-RC8"
   :description "A health check library for sync / async health checks."
 
   :scm {:dir  ".."
