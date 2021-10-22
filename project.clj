@@ -1,6 +1,9 @@
 (defproject io.logicblocks/salutem "0.1.7-RC7"
   :description "Parent for all salutem modules."
 
+  :scm {:name "git"
+        :url  "https://github.com/logicblocks/salutem"}
+
   :plugins [[lein-modules "0.3.11"]
             [lein-changelog "0.3.2"]
             [lein-codox "0.10.7"]]
@@ -12,11 +15,6 @@
    :inherited
    {:url
              "https://github.com/logicblocks/salutem"
-
-    :scm
-             {:dir ".."
-              :name "git"
-              :url  "https://github.com/logicblocks/salutem"}
 
     :license
              {:name "The MIT License"

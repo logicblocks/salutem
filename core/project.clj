@@ -1,6 +1,10 @@
 (defproject io.logicblocks/salutem.core "0.1.7-RC7"
   :description "A health check library for sync / async health checks."
 
+  :scm {:dir  ".."
+        :name "git"
+        :url  "https://github.com/logicblocks/salutem"}
+
   :plugins [[lein-modules "0.3.11"]]
 
   :dependencies [[org.clojure/core.async "_"]
