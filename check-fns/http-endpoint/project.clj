@@ -1,4 +1,4 @@
-(defproject io.logicblocks/salutem.check-fns.http-endpoint "0.1.7-RC8"
+(defproject io.logicblocks/salutem.check-fns.http-endpoint "0.1.7-RC9"
   :description "An HTTP endpoint check function for salutem."
 
   :scm {:dir "../.."
