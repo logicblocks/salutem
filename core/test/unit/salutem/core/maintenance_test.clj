@@ -1538,15 +1538,12 @@
           {:context  context
            :interval interval})]
 
-    (async/<!! (async/timeout 190))
+    (async/<!! (async/timeout 200))
 
-    (is (=
-          (tst/without-timings
-            (registry/find-cached-result @registry-store :thing))
-          (tst/without-timings
-            (results/healthy
-              (merge context
-                {:invocation-count 3})))))
+    (let [result (registry/find-cached-result @registry-store :thing)]
+      (is (= "context" (:some result)))
+      (is (= :healthy (:salutem/status result)))
+      (is (>= 4 (:invocation-count result) 2)))
 
     (maintenance/shutdown maintenance-pipeline)))
 
