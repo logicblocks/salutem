@@ -1,4 +1,4 @@
-(defproject io.logicblocks/salutem.check-fns.data-source "0.1.7-RC10"
+(defproject io.logicblocks/salutem.check-fns.data-source "0.1.7-RC11"
   :description "A data source check function for salutem."
 
   :scm {:dir "../.."
