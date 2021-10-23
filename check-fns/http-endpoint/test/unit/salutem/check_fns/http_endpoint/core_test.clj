@@ -430,6 +430,46 @@
       (is (= :threw-exception (:salutem/reason result)))
       (is (= exception (:salutem/exception result))))))
 
+(deftest http-endpoint-check-fn-uses-supplied-successful-response-fn-on-success
+  (let [context {:success-statuses #{200}}
+        endpoint-url "http://service.example.com/ping"
+
+        check-fn (scfhe/http-endpoint-check-fn endpoint-url
+                   {:successful-response-fn
+                    (fn [context response]
+                      (contains? (:success-statuses context)
+                        (get response :status)))})
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (http/with-global-fake-routes-in-isolation
+      {endpoint-url
+       (fn [_] {:status 200 :body "All is right with the world."})}
+      (check-fn context result-cb))
+
+    (let [result (deref result-promise 500 nil)]
+      (is (salutem/healthy? result)))))
+
+(deftest http-endpoint-check-fn-uses-supplied-successful-response-fn-on-failure
+  (let [context {:success-statuses #{200}}
+        endpoint-url "http://service.example.com/ping"
+
+        check-fn (scfhe/http-endpoint-check-fn endpoint-url
+                   {:successful-response-fn
+                    (fn [context response]
+                      (contains? (:success-statuses context)
+                        (get response :status)))})
+
+        result-promise (promise)
+        result-cb (partial deliver result-promise)]
+    (http/with-global-fake-routes-in-isolation
+      {endpoint-url
+       (fn [_] {:status 201 :body "All is right with the world."})}
+      (check-fn context result-cb))
+
+    (let [result (deref result-promise 500 nil)]
+      (is (salutem/unhealthy? result)))))
+
 (deftest http-endpoint-check-fn-uses-supplied-response-result-fn-on-success
   (let [endpoint-url "http://service.example.com/ping"
 
@@ -477,6 +517,30 @@
       (is (salutem/unhealthy? result))
       (is (= "Things have gone awry." (:message result)))
       (is (= :runtime-value (:important result))))))
+
+(deftest http-endpoint-check-fn-uses-supplied-failure-reason-fn
+  (let [context {:argument-failure-reason :received-invalid-argument}
+        exception (IllegalArgumentException. "That's not what I need...")
+
+        endpoint-url "http://service.example.com/ping"
+
+        check-fn (scfhe/http-endpoint-check-fn endpoint-url
+                   {:failure-reason-fn
+                    (fn [context ^Exception exception]
+                      (if (isa? (class exception) IllegalArgumentException)
+                        (:argument-failure-reason context)
+                        :threw-exception))})]
+    (let [result-promise (promise)
+          result-cb (partial deliver result-promise)]
+      (http/with-global-fake-routes-in-isolation
+        {endpoint-url
+         (fn [_] (throw exception))}
+        (check-fn context result-cb))
+
+      (let [result (deref result-promise 500 nil)]
+        (is (salutem/unhealthy? result))
+        (is (= :received-invalid-argument (:salutem/reason result)))
+        (is (= exception (:salutem/exception result)))))))
 
 (deftest
   http-endpoint-check-fn-uses-exception-result-fn-on-timeout-exceptions
