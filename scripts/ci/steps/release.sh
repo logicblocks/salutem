@@ -13,7 +13,7 @@ git crypt unlock
 
 git pull
 
-./go library:initialise library:publish:release
+./go library:publish:release
 
 git status
 git push
