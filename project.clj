@@ -9,6 +9,8 @@
                              :deploy-repositories
                              :managed-dependencies]}
 
+  :scm {:dir "."}
+
   :plugins [[lein-changelog "0.3.2"]
             [lein-codox "0.10.7"]
             [lein-parent "0.3.8"]
