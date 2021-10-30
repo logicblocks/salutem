@@ -11,7 +11,7 @@ jobs:
   test:
     working_directory: ~/source
     docker:
-      - image: ruby:2.7.2
+      - image: ruby:2.7.4
       - image: circleci/postgres:11.5-alpine
         environment:
           POSTGRES_DB: test
@@ -24,7 +24,7 @@ jobs:
   prerelease:
     working_directory: ~/source
     docker:
-      - image: ruby:2.7.2
+      - image: ruby:2.7.4
     steps:
       - checkout
       - run: ./scripts/ci/common/install-openjdk.sh
@@ -37,7 +37,7 @@ jobs:
   release:
     working_directory: ~/source
     docker:
-      - image: ruby:2.7.2
+      - image: ruby:2.7.4
     steps:
       - checkout
       - run: ./scripts/ci/common/install-openjdk.sh

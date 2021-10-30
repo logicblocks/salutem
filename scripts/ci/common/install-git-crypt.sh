@@ -8,5 +8,4 @@ apt-get update
 apt-get install -y --no-install-recommends \
   git \
   ssh \
-  libssl1.1 \
   git-crypt
