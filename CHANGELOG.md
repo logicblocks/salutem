@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.1.7] — 2021-10-30
+
 ### Added
 - Add data source check function module
 - Add HTTP endpoint check function module
@@ -84,4 +86,5 @@ Released without _CHANGELOG.md_.
 [0.1.4]: https://github.com/logicblocks/salutem/compare/0.1.3...0.1.4
 [0.1.5]: https://github.com/logicblocks/salutem/compare/0.1.4...0.1.5
 [0.1.6]: https://github.com/logicblocks/salutem/compare/0.1.5...0.1.6
-[Unreleased]: https://github.com/logicblocks/salutem/compare/0.1.6...HEAD
+[0.1.7]: https://github.com/logicblocks/salutem/compare/0.1.6...0.1.7
+[Unreleased]: https://github.com/logicblocks/salutem/compare/0.1.7...HEAD
