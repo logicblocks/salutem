@@ -8,21 +8,73 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+- Add data source check function module
+- Add HTTP endpoint check function module
+- Publish an aggregate jar of all module jars as `io.logicblocks/salutem`
+
+### Fixed
+- Use correct SCM details in sub module poms.
+
+### Changed
+- Change wording of multiple sections in Getting Started guide.
+
 ## [0.1.6] — 2021-09-24
+
+### Changed
+- Update Getting Started guide with details of asynchronous resolution.
 
 ## [0.1.5] — 2021-09-23
 
+### Added
+- Add asynchronous variant of resolve-check.
+- Add asynchronous version of resolve-checks.
+- Include evaluation duration in results.
+- Add documentation for checks/attempt.
+- Add documentation to maintenance processes.
+
+### Changed
+- Parallelise resolve-checks.
+- Namespace salutem specific entries in checks and results.
+- Update documentation and expose more signatures in core namespace.
+
 ## [0.1.4] — 2021-09-17
+
+### Changed
+- Update Getting Started guide with list of events logged by maintenance
+  pipeline.
 
 ## [0.1.3] — 2021-09-17
 
+### Added
+- Create first pass of Getting Started guide.
+- Allow asynchronous evaluation of checks.
+- Add tests for salutem.checks/attempt.
+- Catch exceptions from check functions and convert to unhealthy result.
+- Ensure only one evaluation of each check takes place at a time in maintenance 
+  pipeline.
+- Add performance tests of the maintenance pipeline and registry.
+
+### Changed
+- Rename `:ttl` to `:time-to-re-evaluation` to be more clear on what it is used 
+  for. `:ttl` is still supported but consumers should adopt 
+  `:time-to-re-evaluation` instead as `:ttl` may be removed in a future release.
+
+## [0.1.2] — Never released
+
 ## [0.1.1] — 2021-08-26
 
+### Fixed
+- Fix issue where `cartus.null` was incorrectly included with test scope 
+  causing consumers to have to install manually for `salutem` to work correctly.
+
 ## [0.1.0] — 2021-08-24
+
 ### Added
-- _CHANGELOG.md_ created.
+- Create _CHANGELOG.md_.
 
 ## 0.1.0-RC19 — 2021-08-24
+
 Released without _CHANGELOG.md_.
 
 
