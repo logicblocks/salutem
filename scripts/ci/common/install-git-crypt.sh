@@ -4,7 +4,6 @@
 set -e
 set -o pipefail
 
-sudo apt-get install libssl1.0.0
 apt-get update
 apt-get install -y --no-install-recommends \
   git \
