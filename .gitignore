@@ -15,6 +15,7 @@ pom.xml.asc
 /**/.nrepl-port
 .hgignore
 .hg/
+.idea/
 *.iml
 *.iws
 *.ipr

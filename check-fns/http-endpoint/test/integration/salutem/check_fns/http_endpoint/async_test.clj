@@ -2,12 +2,8 @@
   (:require
    [clojure.test :refer :all]
 
-   [clj-http.conn-mgr :as conn-mgr]
    [clj-wiremock.core :as wiremock]
 
-   [tick.alpha.api :as time]
-
-   [salutem.core :as salutem]
    [salutem.check-fns.http-endpoint.core :as scfhe]
 
    [salutem.test.support.ports :as ports]))

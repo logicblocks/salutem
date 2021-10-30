@@ -1,14 +1,19 @@
 (defproject io.logicblocks/salutem.check-fns "0.1.7-RC11"
   :description "A set of standard check functions for salutem."
 
-  :scm {:dir  ".."
-        :name "git"
-        :url  "https://github.com/logicblocks/salutem"}
+  :parent-project {:path "../parent/project.clj"
+                   :inherit [:scm
+                             :url
+                             :license
+                             :plugins
+                             :deploy-repositories
+                             :managed-dependencies]}
 
-  :plugins [[lein-modules "0.3.11"]]
+  :plugins [[lein-parent "0.3.8"]]
 
-  :dependencies [[io.logicblocks/salutem.check-fns.data-source :version]]
+  :dependencies [[io.logicblocks/salutem.check-fns.data-source]
+                 [io.logicblocks/salutem.check-fns.http-endpoint]]
 
-  :source-paths ^:replace ["src"]
-  :test-paths ^:replace []
-  :resource-paths ^:replace [])
+  :source-paths []
+  :test-paths []
+  :resource-paths [])

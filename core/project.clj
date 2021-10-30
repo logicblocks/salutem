@@ -1,19 +1,37 @@
 (defproject io.logicblocks/salutem.core "0.1.7-RC11"
   :description "A health check library for sync / async health checks."
 
-  :scm {:dir  ".."
-        :name "git"
-        :url  "https://github.com/logicblocks/salutem"}
+  :parent-project {:path    "../parent/project.clj"
+                   :inherit [:scm
+                             :url
+                             :license
+                             :plugins
+                             [:profiles :parent-shared]
+                             [:profiles :parent-dev]
+                             [:profiles :parent-unit]
+                             [:profiles :parent-performance]
+                             :deploy-repositories
+                             :managed-dependencies
+                             :cloverage
+                             :bikeshed
+                             :cljfmt
+                             :eastwood]}
 
-  :plugins [[lein-modules "0.3.11"]]
+  :plugins [[lein-parent "0.3.8"]]
 
-  :dependencies [[org.clojure/core.async "_"]
+  :dependencies [[org.clojure/core.async]
 
-                 [io.logicblocks/cartus.core "_"]
-                 [io.logicblocks/cartus.null "_"]
+                 [io.logicblocks/cartus.core]
+                 [io.logicblocks/cartus.null]
 
-                 [tick "_"]]
+                 [tick]]
+
+  :profiles {:shared      {:dependencies [[tortue/spy]]}
+             :dev         [:parent-dev :shared]
+             :unit        [:parent-unit :shared]
+             :performance [:parent-performance :shared]}
 
   :test-paths ["test/shared"
                "test/unit"
-               "test/performance"])
+               "test/performance"]
+  :resource-paths [])

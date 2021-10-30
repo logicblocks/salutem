@@ -1,34 +1,49 @@
 (defproject io.logicblocks/salutem.check-fns.data-source "0.1.7-RC11"
   :description "A data source check function for salutem."
 
-  :scm {:dir "../.."
-        :name "git"
-        :url  "https://github.com/logicblocks/salutem"}
+  :parent-project {:path    "../../parent/project.clj"
+                   :inherit [:scm
+                             :url
+                             :license
+                             :plugins
+                             [:profiles :parent-shared]
+                             [:profiles :parent-dev]
+                             [:profiles :parent-unit]
+                             [:profiles :parent-integration]
+                             :deploy-repositories
+                             :managed-dependencies
+                             :cloverage
+                             :bikeshed
+                             :cljfmt
+                             :eastwood]}
 
-  :plugins [[lein-modules "0.3.11"]]
+  :plugins [[lein-parent "0.3.8"]]
 
-  :dependencies [[io.logicblocks/salutem.core :version]
+  :dependencies [[io.logicblocks/salutem.core]
 
-                 [io.logicblocks/cartus.core "_"]
-                 [io.logicblocks/cartus.null "_"]
+                 [io.logicblocks/cartus.core]
+                 [io.logicblocks/cartus.null]
 
-                 [tick "_"]
+                 [tick]
 
-                 [com.github.seancorfield/next.jdbc "_"]]
+                 [com.github.seancorfield/next.jdbc]]
 
   :profiles
   {:shared
-   ^{:pom-scope :test}
-   {:dependencies [[org.jooq/jooq "_"]
-                   [com.h2database/h2 "_"]
-                   [com.impossibl.pgjdbc-ng/pgjdbc-ng "0.8.9"]]}
+               ^{:pom-scope :test}
+               {:dependencies [[org.jooq/jooq]
+                               [com.impossibl.pgjdbc-ng/pgjdbc-ng]]}
+
+   :dev
+               [:parent-dev :shared]
 
    :unit
-   {:eftest {:multithread? false}}
+               [:parent-unit :shared {:eftest {:multithread? false}}]
 
    :integration
-   {:eftest {:multithread? false}}}
+               [:parent-integration :shared {:eftest {:multithread? false}}]}
 
   :test-paths ["test/shared"
                "test/unit"
-               "test/integration"])
+               "test/integration"]
+  :resource-paths [])

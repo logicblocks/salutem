@@ -8,7 +8,6 @@ require 'ruby_leiningen'
 require 'yaml'
 
 task :default => [
-  :'library:initialise',
   :'library:check',
   :'library:test:all'
 ]
@@ -21,7 +20,7 @@ RubyLeiningen::Commands.define_custom_command("modules") do |config, opts|
 end
 
 RakeLeiningen.define_installation_tasks(
-  version: '2.9.1'
+  version: '2.9.7'
 )
 
 namespace :encryption do
@@ -124,11 +123,6 @@ namespace :pipeline do
 end
 
 namespace :library do
-  desc "Initialise all modules in the local maven repository"
-  task :initialise => [:'leiningen:ensure'] do
-    RubyLeiningen.modules(command: "install")
-  end
-
   RakeLeiningen.define_check_tasks(fix: true)
 
   namespace :test do
