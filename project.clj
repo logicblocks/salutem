@@ -6,6 +6,7 @@
                              :url
                              :license
                              :plugins
+                             [:profiles :parent-shared]
                              :deploy-repositories
                              :managed-dependencies]}
 
@@ -47,7 +48,7 @@
                 "eftest"]}}
 
    :codox
-   [:shared
+   [:parent-shared
     {:dependencies [[io.logicblocks/salutem.core "0.1.7-RC10"]
 
                     [org.clojure/core.async]
@@ -79,11 +80,12 @@
    {:release-tasks
     [["vcs" "assert-committed"]
      ["sub" "change" "version" "leiningen.release/bump-version" "release"]
+     ["sub" "-s" "core:check-fns/data-source:check-fns/http-endpoint:check-fns:." "install"]
      ["changelog" "release"]
      ["shell" "sed" "-E" "-i.bak" "s/salutem\\.(.+) \"[0-9]+\\.[0-9]+\\.[0-9]+\"/salutem.\\\\1 \"${:version}\"/g" "README.md"]
      ["shell" "rm" "-f" "README.md.bak"]
-     ["shell" "sed" "-E" "-i.bak" "s/salutem\\.(.+) \"[0-9]+\\.[0-9]+\\.[0-9]+\"/salutem.\\\\1 \"${:version}\"/g" "docs/getting-started.md"]
-     ["shell" "rm" "-f" "docs/getting-started.md.bak"]
+     ["shell" "sed" "-E" "-i.bak" "s/salutem\\.(.+) \"[0-9]+\\.[0-9]+\\.[0-9]+\"/salutem.\\\\1 \"${:version}\"/g" "docs/01-getting-started.md"]
+     ["shell" "rm" "-f" "docs/01-getting-started.md.bak"]
      ["codox"]
      ["shell" "git" "add" "."]
      ["vcs" "commit" "Release version %s [skip ci]"]
