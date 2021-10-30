@@ -10,6 +10,11 @@ with support for:
   kept up-to-date; and
 * notifying via callbacks after checks are evaluated.
 
+`salutem` also provides check function implementations for:
+
+* data sources; and
+* HTTP endpoints.
+
 `salutem` is somewhat inspired by
 [dropwizard-health](https://github.com/dropwizard/dropwizard-health) which may
 provide additional insight into its design.
@@ -40,11 +45,16 @@ provide additional insight into its design.
 
 ## Installation
 
-Add the following to your `project.clj` file:
+`salutem` consists of a core module and a set of check function modules. In 
+order to get started, you need only install `salutem.core`. To do so, add the 
+following to your `project.clj` file:
 
 ```clojure
 [io.logicblocks/salutem.core "0.1.7"]
 ```
+
+See [Check Functions](02-check-functions.md) for details on installing the check
+function modules.
 
 ## Definitions
 
