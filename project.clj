@@ -14,7 +14,8 @@
             [lein-parent "0.3.8"]
             [lein-sub "0.3.0"]]
 
-  :sub ["core"
+  :sub ["parent"
+        "core"
         "check-fns/data-source"
         "check-fns/http-endpoint"
         "check-fns"
@@ -67,30 +68,27 @@
    :prerelease
    {:release-tasks
     [
-     ["shell" "git" "diff" "--exit-code"]
+     ["vcs" "assert-committed"]
      ["sub" "change" "version" "leiningen.release/bump-version" "rc"]
      ["sub" "change" "version" "leiningen.release/bump-version" "release"]
      ["vcs" "commit" "Pre-release version %s [skip ci]"]
      ["vcs" "tag"]
-     ["sub" "deploy"]]}
+     ["sub" "-s" "core:check-fns/data-source:check-fns/http-endpoint:check-fns:." "deploy"]]}
 
    :release
    {:release-tasks
-    [["shell" "git" "diff" "--exit-code"]
+    [["vcs" "assert-committed"]
      ["sub" "change" "version" "leiningen.release/bump-version" "release"]
-     ["sub" "install"]
      ["changelog" "release"]
      ["shell" "sed" "-E" "-i.bak" "s/salutem\\.(.+) \"[0-9]+\\.[0-9]+\\.[0-9]+\"/salutem.\\\\1 \"${:version}\"/g" "README.md"]
      ["shell" "rm" "-f" "README.md.bak"]
      ["shell" "sed" "-E" "-i.bak" "s/salutem\\.(.+) \"[0-9]+\\.[0-9]+\\.[0-9]+\"/salutem.\\\\1 \"${:version}\"/g" "docs/getting-started.md"]
      ["shell" "rm" "-f" "docs/getting-started.md.bak"]
      ["codox"]
-     ;["shell" "sed" "-E" "-i.bak" "s/\\[io\\.logicblocks\\/salutem \"[0-9]+\\.[0-9]+\\.[0-9]+\"\\]/[io.logicblocks\\/salutem.core \"${:version}\"]/g" "docs/index.html"]
-     ;["shell" "rm" "-f" "docs/index.html.bak"]
      ["shell" "git" "add" "."]
      ["vcs" "commit" "Release version %s [skip ci]"]
      ["vcs" "tag"]
-     ["sub" "deploy"]
+     ["sub" "-s" "core:check-fns/data-source:check-fns/http-endpoint:check-fns:." "deploy"]
      ["sub" "change" "version" "leiningen.release/bump-version" "patch"]
      ["sub" "change" "version" "leiningen.release/bump-version" "rc"]
      ["sub" "change" "version" "leiningen.release/bump-version" "release"]
