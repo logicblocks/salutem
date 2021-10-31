@@ -27,9 +27,9 @@
     (wiremock/with-wiremock [{:port wiremock-port}]
       (wiremock/with-stubs
         [{:port wiremock-port
-          :req [:GET "/ping"]
-          :res [200 {:body                   "pong"
-                     :fixedDelayMilliseconds 250}]}]
+          :req  [:GET "/ping"]
+          :res  [200 {:body                   "pong"
+                      :fixedDelayMilliseconds 250}]}]
         (swap! order-atom conj :before)
         (check-fn context
           (fn [result]
@@ -56,9 +56,9 @@
     (wiremock/with-wiremock [{:port endpoint-port}]
       (wiremock/with-stubs
         [{:port endpoint-port
-          :req [:GET "/ping"]
-          :res [200 {:body                   "pong"
-                     :fixedDelayMilliseconds 1000}]}]
+          :req  [:GET "/ping"]
+          :res  [200 {:body                   "pong"
+                      :fixedDelayMilliseconds 1000}]}]
 
         (check-fn context result-cb)
 
@@ -70,13 +70,15 @@
   (let [unroutable-address "10.0.0.0"
         endpoint-url (str "http://" unroutable-address "/ping")
 
-        ; Need to manage connection manager directly to control when shutdown
-        ; wait time is incurred.
         connection-manager (conn-mgr/make-reusable-async-conn-manager {})
 
         check-fn (scfhe/http-endpoint-check-fn endpoint-url
-                   {:connection-timeout (time/new-duration 500 :millis)
-                    :connection-manager connection-manager})
+                   {:connection-timeout
+                    (time/new-duration 500 :millis)
+                    :opts
+                    ; Need to manage connection manager directly to control when
+                    ; shutdown wait time is incurred.
+                    {:connection-manager connection-manager}})
 
         context {}
 

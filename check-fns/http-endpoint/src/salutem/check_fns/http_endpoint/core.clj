@@ -96,10 +96,6 @@
      - `:socket-timeout`: the [[salutem.core/duration]] to wait while streaming
        response data since the last data was received before considering the
        request failed; defaults to 5 seconds.
-     - `:connection-manager`: the connection manager (as defined in
-       [`clj-http`](https://github.com/dakrone/clj-http)) from which to obtain
-       connections to the endpoint; defaults to `nil` such that the default
-       behaviour from [`clj-http`](https://github.com/dakrone/clj-http) is used.
      - `:successful-response-fn`: a function of context and the response from a
        request to the endpoint, returning true if the response was successful,
        false otherwise; by default uses [[successful?]].
@@ -137,8 +133,6 @@
             connection-request-timeout
             connection-timeout
             socket-timeout
-
-            connection-manager
 
             successful-response-fn
             response-result-fn
@@ -197,8 +191,7 @@
                   :connection-timeout (time/millis connection-timeout)
                   :socket-timeout     (time/millis socket-timeout)
                   :connection-request-timeout
-                  (time/millis connection-request-timeout)
-                  :connection-manager connection-manager})
+                  (time/millis connection-request-timeout)})
                (fn [response]
                  (log/info logger
                    :salutem.check-fns.http-endpoint/check.successful)
