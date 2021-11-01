@@ -1,5 +1,8 @@
 (ns salutem.check-fns.http-endpoint.core
-  "Provides an HTTP endpoint check function for salutem."
+  "Provides an HTTP endpoint check function for salutem.
+
+  Packaged in a separate module, `salutem.check-fns.http-endpoint` versioned
+  in lock step with `salutem.core`."
   (:require
    [clj-http.client :as http]
 

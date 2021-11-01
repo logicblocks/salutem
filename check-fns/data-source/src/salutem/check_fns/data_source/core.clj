@@ -1,5 +1,8 @@
 (ns salutem.check-fns.data-source.core
-  "Provides a data source check function for salutem."
+  "Provides a data source check function for salutem.
+
+  Packaged in a separate module, `salutem.check-fns.data-source` versioned
+  in lock step with `salutem.core`."
   (:require
    [next.jdbc :as jdbc]
    [next.jdbc.result-set :as jdbc-rs]
