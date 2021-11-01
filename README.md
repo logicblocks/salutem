@@ -9,8 +9,14 @@ A system for defining and maintaining a collection of health checks.
 `salutem` supports:
 * both realtime and background checks
 * a registry for storing, finding and resolving checks
-* an asynchronous maintenance system for ensuring that the results of checks 
-  are kept up-to-date according to their definition
+* an asynchronous maintenance system for ensuring that the results of checks are
+  kept up-to-date; and
+* notifying via callbacks after checks are evaluated.
+
+`salutem` also provides check function implementations for:
+
+* data sources; and
+* HTTP endpoints.
 
 ## Install
 
@@ -23,7 +29,7 @@ Add the following to your `project.clj` file:
 ## Documentation
 
 * [API Docs](http://logicblocks.github.io/salutem)
-* [Getting Started](https://logicblocks.github.io/salutem/getting-started.html)
+* [Getting Started](https://logicblocks.github.io/salutem/01-getting-started.html)
 
 ## Usage
 
