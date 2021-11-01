@@ -111,7 +111,14 @@
    :doc-paths   ["docs"]
    :source-uri  "https://github.com/logicblocks/salutem/blob/{version}/{filepath}#L{line}"}
 
-  :aliases {"eastwood"
+  :aliases {"install"
+            ["do"
+             ["sub"
+              "-s" "core:check-fns/data-source:check-fns/http-endpoint:check-fns"
+              "install"]
+             ["install"]]
+
+            "eastwood"
             ["sub"
              "-s" "core:check-fns/data-source:check-fns/http-endpoint"
              "eastwood"]
