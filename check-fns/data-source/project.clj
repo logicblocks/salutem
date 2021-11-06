@@ -7,6 +7,7 @@
                              :license
                              :plugins
                              [:profiles :parent-shared]
+                             [:profiles :parent-reveal]
                              [:profiles :parent-dev]
                              [:profiles :parent-unit]
                              [:profiles :parent-integration]
@@ -29,19 +30,19 @@
                  [com.github.seancorfield/next.jdbc]]
 
   :profiles
-  {:shared
-               ^{:pom-scope :test}
-               {:dependencies [[org.jooq/jooq]
-                               [com.impossibl.pgjdbc-ng/pgjdbc-ng]]}
+  {:shared      ^{:pom-scope :test}
+                {:dependencies [[org.jooq/jooq]
+                                [com.impossibl.pgjdbc-ng/pgjdbc-ng]]}
 
-   :dev
-               [:parent-dev :shared]
+   :dev         [:parent-dev :shared]
 
-   :unit
-               [:parent-unit :shared {:eftest {:multithread? false}}]
+   :reveal      [:parent-reveal]
 
-   :integration
-               [:parent-integration :shared {:eftest {:multithread? false}}]}
+   :unit        [:parent-unit :shared
+                 {:eftest {:multithread? false}}]
+
+   :integration [:parent-integration :shared
+                 {:eftest {:multithread? false}}]}
 
   :test-paths ["test/shared"
                "test/unit"

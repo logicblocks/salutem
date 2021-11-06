@@ -7,6 +7,7 @@
                              :license
                              :plugins
                              [:profiles :parent-shared]
+                             [:profiles :parent-reveal]
                              [:profiles :parent-dev]
                              [:profiles :parent-unit]
                              [:profiles :parent-performance]
@@ -27,6 +28,7 @@
                  [tick]]
 
   :profiles {:shared      {:dependencies [[tortue/spy]]}
+             :reveal      [:parent-reveal]
              :dev         [:parent-dev :shared]
              :unit        [:parent-unit :shared]
              :performance [:parent-performance :shared]}

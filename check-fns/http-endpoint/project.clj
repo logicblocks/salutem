@@ -7,6 +7,7 @@
                              :license
                              :plugins
                              [:profiles :parent-shared]
+                             [:profiles :parent-reveal]
                              [:profiles :parent-dev]
                              [:profiles :parent-unit]
                              [:profiles :parent-integration]
@@ -29,20 +30,19 @@
                  [clj-http]]
 
   :profiles
-  {:shared
-               ^{:pom-scope :test}
-               {:dependencies [[clj-http-fake]
-                               [kelveden/clj-wiremock]
-                               [org.slf4j/slf4j-nop]]}
+  {:shared      ^{:pom-scope :test}
+                {:dependencies [[clj-http-fake]
+                                [kelveden/clj-wiremock]
+                                [org.slf4j/slf4j-nop]]}
 
-   :dev
-               [:parent-dev :shared]
+   :dev         [:parent-dev :shared]
 
-   :unit
-               [:parent-unit :shared {:eftest {:multithread? false}}]
+   :reveal      [:parent-reveal]
 
-   :integration
-               [:parent-integration :shared]}
+   :unit        [:parent-unit :shared
+                 {:eftest {:multithread? false}}]
+
+   :integration [:parent-integration :shared]}
 
   :test-paths ["test/shared"
                "test/unit"

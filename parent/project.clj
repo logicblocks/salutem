@@ -46,6 +46,8 @@
    [eftest "0.5.9"]
    [tortue/spy "2.9.0"]
 
+   [vlaaad/reveal "1.3.226"]
+
    [org.jooq/jooq "3.15.3"]
    [com.impossibl.pgjdbc-ng/pgjdbc-ng "0.8.9"]
 
@@ -69,6 +71,12 @@
                    [nrepl]
 
                    [eftest]]}
+
+   :parent-reveal
+   [:parent-shared
+    {:dependencies [[vlaaad/reveal]]
+     :repl-options {:nrepl-middleware [vlaaad.reveal.nrepl/middleware]}
+     :jvm-opts     ["-Dvlaaad.reveal.prefs={:theme :light :font-family \"Fira Code\" :font-size 13}"]}]
 
    :parent-dev
    ^{:pom-scope :test}
