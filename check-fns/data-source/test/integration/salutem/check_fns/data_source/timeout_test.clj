@@ -1,13 +1,11 @@
 (ns salutem.check-fns.data-source.timeout-test
   (:require
    [clojure.test :refer :all]
-   [clojure.pprint :as pp]
 
    [next.jdbc :as jdbc]
 
    [salutem.core :as salutem]
-   [salutem.check-fns.data-source.core :as scfds]
-   [tick.alpha.api :as time])
+   [salutem.check-fns.data-source.core :as scfds])
   (:import
    [com.impossibl.postgres.jdbc PGSQLSimpleException]))
 
