@@ -117,6 +117,11 @@
   [check]
   (= (:salutem/type check) :realtime))
 
+(defn check-name
+  "Returns the name of the provided check."
+  [check]
+  (:salutem/name check))
+
 (defn attempt
   "Attempts to obtain a result for a check, handling timeouts and exceptions.
 

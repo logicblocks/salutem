@@ -46,17 +46,22 @@
   [result extra-data]
   (merge extra-data result))
 
+(defn status
+  "Returns the status of the provided result."
+  [result]
+  (:salutem/status result))
+
 (defn healthy?
   "Returns `true` if the result has a `:healthy` status, `false`
    otherwise."
   [result]
-  (= (:salutem/status result) :healthy))
+  (= (status result) :healthy))
 
 (defn unhealthy?
   "Returns `true` if the result has an `:unhealthy` status, `false`
    otherwise."
   [result]
-  (= (:salutem/status result) :unhealthy))
+  (= (status result) :unhealthy))
 
 (defn outdated?
   "Returns `true` if the result of the check is outdated, `false`

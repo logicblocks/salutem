@@ -52,6 +52,14 @@
         after (t/+ (t/now) (t/new-duration 1 :seconds))]
     (is (t/> after (:salutem/evaluated-at result) before))))
 
+(deftest status-returns-result-status
+  (let [healthy-result (results/healthy)
+        unhealthy-result (results/unhealthy)
+        pending-result (results/result :pending)]
+    (is (= (results/status healthy-result) :healthy))
+    (is (= (results/status unhealthy-result) :unhealthy))
+    (is (= (results/status pending-result) :pending))))
+
 (deftest is-always-outdated-if-check-is-realtime
   (let [check (checks/realtime-check :thing
                 (fn [_ result-cb]

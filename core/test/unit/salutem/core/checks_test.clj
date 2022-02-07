@@ -103,6 +103,13 @@
                 {:salutem/timeout check-timeout})]
     (is (= (:salutem/timeout check) check-timeout))))
 
+(deftest check-name-returns-name-of-check
+  (let [check-name :thing
+        check-fn (fn [_ result-cb]
+                   (result-cb (results/healthy)))
+        check (checks/background-check check-name check-fn)]
+    (is (= (checks/check-name check) check-name))))
+
 (deftest attempt-executes-check-function-putting-result-message-to-channel
   (let [dependencies {}
         trigger-id :test

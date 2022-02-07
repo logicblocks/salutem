@@ -65,6 +65,11 @@
   ([] (results/unhealthy))
   ([extra-data] (results/unhealthy extra-data)))
 
+(defn status
+  "Returns the status of the provided result."
+  [result]
+  (results/status result))
+
 (defn healthy?
   "Returns `true` if the result has a `:healthy` status, `false`
    otherwise."
@@ -172,6 +177,11 @@
    otherwise."
   [check]
   (checks/realtime? check))
+
+(defn check-name
+  "Returns the name of the provided check."
+  [check]
+  (checks/check-name check))
 
 (defn evaluate
   "Evaluates the provided check, returning the result of the evaluation.

@@ -8,12 +8,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+- Add further documentation on included check function modules.
+- Add function to retrieve check name from check.
+- Add function to retrieve result status from result.
+
 ## [0.1.7] — 2021-10-30
 
 ### Added
-- Add data source check function module
-- Add HTTP endpoint check function module
-- Publish an aggregate jar of all module jars as `io.logicblocks/salutem`
+- Add data source check function module.
+- Add HTTP endpoint check function module.
+- Publish an aggregate jar of all module jars as `io.logicblocks/salutem`.
 
 ### Fixed
 - Use correct SCM details in sub module poms.
