@@ -50,7 +50,7 @@ GEM
       concurrent-ruby (~> 1.0)
     i18n (1.8.10)
       concurrent-ruby (~> 1.0)
-    jmespath (1.4.0)
+    jmespath (1.6.1)
     lino (3.0.0)
       hamster (~> 3.0)
       open4 (~> 1.3)
