@@ -1,0 +1,20 @@
+require:
+  - rubocop-rake
+
+AllCops:
+  NewCops: enable
+
+Layout/LineLength:
+  Max: 80
+
+Layout/MultilineMethodCallIndentation:
+  EnforcedStyle: indented_relative_to_receiver
+
+Metrics/BlockLength:
+  Enabled: false
+
+Style/Documentation:
+  Enabled: false
+
+Style/SymbolProc:
+  Enabled: false

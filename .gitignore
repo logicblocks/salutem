@@ -14,11 +14,14 @@ pom.xml.asc
 /.nrepl-port
 /**/.nrepl-port
 .hgignore
+.bundle
 .hg/
-.idea/
 *.iml
 *.iws
 *.ipr
 .DS_Store
+/run
 /vendor
 .eastwood
+/.idea
+lsp/
