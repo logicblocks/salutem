@@ -172,7 +172,7 @@ specific instant for when evaluation occurred:
 
 ```clojure
 (require '[salutem.core :as salutem])
-(require '[tick.alpha.api :as time])
+(require '[tick.core :as time])
 
 (salutem/healthy
   {:salutem/evaluated-at (time/- (time/now) (time/new-duration 20 :minutes))})
@@ -496,7 +496,7 @@ Let's say we have the following registry:
 
 ```clojure
 (require '[salutem.core :as salutem])
-(require '[tick.alpha.api :as time])
+(require '[tick.core :as time])
 
 (def user-profile-service-check-name :services/user-profile)
 (def search-service-check-name :services/search)
@@ -575,7 +575,7 @@ First, let's define a registry:
 
 ```clojure
 (require '[salutem.core :as salutem])
-(require '[tick.alpha.api :as time])
+(require '[tick.core :as time])
 
 (def user-profile-service-check-name :services/user-profile)
 (def search-service-check-name :services/search)

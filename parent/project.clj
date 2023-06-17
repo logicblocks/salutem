@@ -9,15 +9,14 @@
   {:name "The MIT License"
    :url  "https://opensource.org/licenses/MIT"}
 
-  :plugins [[fipp "0.6.24"]
-            [io.logicblocks/lein-interpolate "0.1.1-RC2"]
-            [jonase/eastwood "0.9.9"]
-            [lein-ancient "0.6.15"]
+  :plugins [[io.logicblocks/lein-interpolate "0.1.1-RC2"]
+            [jonase/eastwood "1.4.0"]
+            [lein-ancient "0.7.0"]
             [lein-bikeshed "0.5.2"]
-            [lein-cljfmt "0.7.0"]
-            [lein-cloverage "1.1.2"]
+            [lein-cljfmt "0.9.2"]
+            [lein-cloverage "1.2.4"]
             [lein-cprint "1.3.3"]
-            [lein-eftest "0.5.9"]
+            [lein-eftest "0.6.0"]
             [lein-kibit "0.1.8"]
             [lein-shell "0.5.0"]]
 
@@ -26,39 +25,39 @@
    "snapshots" {:url "https://repo.clojars.org" :creds :gpg}}
 
   :managed-dependencies
-  [[org.clojure/clojure "1.10.3"]
+  [[org.clojure/clojure "1.11.1"]
    [org.clojure/tools.trace "0.7.11"]
-   [org.clojure/core.async "1.2.603"]
+   [org.clojure/core.async "1.6.673"]
 
-   [io.logicblocks/cartus.core "0.1.15-RC4"]
-   [io.logicblocks/cartus.null "0.1.15-RC4"]
-   [io.logicblocks/cartus.test "0.1.15-RC4"]
+   [io.logicblocks/cartus.core "0.1.18"]
+   [io.logicblocks/cartus.null "0.1.18"]
+   [io.logicblocks/cartus.test "0.1.18"]
 
    [io.logicblocks/salutem.core :project/version]
    [io.logicblocks/salutem.check-fns :project/version]
    [io.logicblocks/salutem.check-fns.data-source :project/version]
    [io.logicblocks/salutem.check-fns.http-endpoint :project/version]
 
-   [tick "0.4.32"]
+   [tick "0.6.2"]
 
-   [nrepl "0.8.3"]
+   [nrepl "1.0.0"]
 
-   [eftest "0.5.9"]
-   [tortue/spy "2.9.0"]
+   [eftest "0.6.0"]
+   [tortue/spy "2.14.0"]
 
-   [vlaaad/reveal "1.3.226"]
+   [vlaaad/reveal "1.3.280"]
 
    [org.jooq/jooq "3.15.3"]
    [com.impossibl.pgjdbc-ng/pgjdbc-ng "0.8.9"]
 
-   [com.github.seancorfield/next.jdbc "1.2.709"]
+   [com.github.seancorfield/next.jdbc "1.3.874"]
 
    [clj-http "3.12.3"]
 
-   [clj-http-fake "1.0.3"]
-   [kelveden/clj-wiremock "1.7.0"]
+   [clj-http-fake "1.0.4"]
+   [kelveden/clj-wiremock "1.8.0"]
 
-   [org.slf4j/slf4j-nop "1.7.30"]]
+   [org.slf4j/slf4j-nop "2.0.7"]]
 
   :profiles
   {:parent-shared
@@ -76,7 +75,7 @@
    [:parent-shared
     {:dependencies [[vlaaad/reveal]]
      :repl-options {:nrepl-middleware [vlaaad.reveal.nrepl/middleware]}
-     :jvm-opts     ["-Dvlaaad.reveal.prefs={:theme :light :font-family \"Fira Code\" :font-size 13}"]}]
+     :jvm-opts     ["-Dvlaaad.reveal.prefs={:theme :light :font-family \"FiraCode Nerd Font Mono\" :font-size 13}"]}]
 
    :parent-dev
    ^{:pom-scope :test}

@@ -4,7 +4,7 @@
    [clojure.core.async :as async]
 
    [spy.core :as spy]
-   [tick.alpha.api :as t]
+   [tick.core :as t]
 
    [salutem.test.support.data :as data]
 
@@ -74,10 +74,10 @@
 
         outdated-check-1-result
         (results/healthy
-          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
+          {:salutem/evaluated-at (t/<< (t/now) (t/new-duration 35 :seconds))})
         current-check-2-result
         (results/healthy
-          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 10 :seconds))})
+          {:salutem/evaluated-at (t/<< (t/now) (t/new-duration 10 :seconds))})
 
         registry
         (-> (registry/empty-registry)
@@ -109,13 +109,13 @@
 
         outdated-check-1-result
         (results/healthy
-          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
+          {:salutem/evaluated-at (t/<< (t/now) (t/new-duration 35 :seconds))})
         current-check-2-result
         (results/healthy
-          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 10 :seconds))})
+          {:salutem/evaluated-at (t/<< (t/now) (t/new-duration 10 :seconds))})
         outdated-check-3-result
         (results/healthy
-          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 2 :minutes))})
+          {:salutem/evaluated-at (t/<< (t/now) (t/new-duration 2 :minutes))})
 
         registry
         (-> (registry/empty-registry)
@@ -149,7 +149,7 @@
 
         current-check-2-result
         (results/healthy
-          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 10 :seconds))})
+          {:salutem/evaluated-at (t/<< (t/now) (t/new-duration 10 :seconds))})
 
         registry
         (-> (registry/empty-registry)

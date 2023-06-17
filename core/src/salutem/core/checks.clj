@@ -3,7 +3,7 @@
   (:require
    [clojure.core.async :as async]
 
-   [tick.alpha.api :as t]
+   [tick.core :as t]
 
    [cartus.core :as log]
    [cartus.null :as cartus-null]

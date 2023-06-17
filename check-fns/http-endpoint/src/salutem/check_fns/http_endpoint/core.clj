@@ -6,7 +6,7 @@
   (:require
    [clj-http.client :as http]
 
-   [tick.alpha.api :as time]
+   [tick.core :as time]
 
    [cartus.core :as log]
    [cartus.null :as cn]

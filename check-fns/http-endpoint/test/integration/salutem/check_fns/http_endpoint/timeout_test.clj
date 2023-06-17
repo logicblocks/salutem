@@ -5,7 +5,7 @@
    [clj-http.conn-mgr :as conn-mgr]
    [clj-wiremock.core :as wiremock]
 
-   [tick.alpha.api :as time]
+   [tick.core :as time]
 
    [salutem.core :as salutem]
    [salutem.check-fns.http-endpoint.core :as scfhe]

@@ -11,8 +11,8 @@
                              :managed-dependencies]}
 
   :plugins [[lein-changelog "0.3.2"]
-            [lein-codox "0.10.7"]
-            [lein-parent "0.3.8"]
+            [lein-codox "0.10.8"]
+            [lein-parent "0.3.9"]
             [lein-sub "0.3.0"]]
 
   :sub ["parent"
@@ -49,7 +49,7 @@
 
    :codox
    [:parent-shared
-    {:dependencies [[io.logicblocks/salutem.core "0.1.7-RC10"]
+    {:dependencies [[io.logicblocks/salutem.core :project/version]
 
                     [org.clojure/core.async]
 

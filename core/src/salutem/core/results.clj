@@ -1,7 +1,7 @@
 (ns salutem.core.results
   "Provides constructors and predicates for check results."
   (:require
-   [tick.alpha.api :as t]))
+   [tick.core :as t]))
 
 (defn result
   "Constructs a result with the provided `status`.
@@ -82,4 +82,4 @@
      (= (:salutem/type check) :realtime)
      (nil? result)
      (t/< (:salutem/evaluated-at result)
-       (t/- relative-to (:salutem/time-to-re-evaluation check))))))
+       (t/<< relative-to (:salutem/time-to-re-evaluation check))))))

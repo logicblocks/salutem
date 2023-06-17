@@ -2,7 +2,7 @@
   (:require
    [clojure.core.async :as async]
 
-   [tick.alpha.api :as t]))
+   [tick.core :as t]))
 
 (defn <!!-or-timeout
   ([chan]

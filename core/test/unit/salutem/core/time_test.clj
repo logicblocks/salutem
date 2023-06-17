@@ -2,7 +2,7 @@
   (:require
    [clojure.test :refer :all]
 
-   [tick.alpha.api :as t]
+   [tick.core :as t]
 
    [salutem.core.time :as st]))
 

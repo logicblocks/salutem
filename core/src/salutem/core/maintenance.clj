@@ -7,7 +7,7 @@
    [cartus.core :as log]
    [cartus.null :as null]
 
-   [tick.alpha.api :as t]
+   [tick.core :as t]
 
    [salutem.core.checks :as checks]
    [salutem.core.registry :as registry]))

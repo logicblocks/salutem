@@ -2,7 +2,7 @@
   (:require
    [clojure.test :refer :all]
 
-   [tick.alpha.api :as t]
+   [tick.core :as t]
 
    [salutem.core.time :as time]
    [salutem.core.results :as results]
@@ -31,13 +31,13 @@
     (is (not (results/healthy? result)))))
 
 (deftest creates-result-with-now-as-evaluated-at-datetime-by-default
-  (let [before (t/- (t/now) (t/new-duration 1 :seconds))
+  (let [before (t/<< (t/now) (t/new-duration 1 :seconds))
         result (results/healthy)
-        after (t/+ (t/now) (t/new-duration 1 :seconds))]
+        after (t/>> (t/now) (t/new-duration 1 :seconds))]
     (is (t/> after (:salutem/evaluated-at result) before))))
 
 (deftest creates-result-with-specified-evaluated-at-datetime-when-provided
-  (let [evaluated-at (t/- (t/now) (t/new-period 1 :weeks))
+  (let [evaluated-at (t/<< (t/now) (t/new-period 1 :weeks))
         result (results/healthy {:salutem/evaluated-at evaluated-at})]
     (is (= (:salutem/evaluated-at result) evaluated-at))))
 
@@ -47,9 +47,9 @@
     (is (= (:thing-2 result) "two"))))
 
 (deftest creates-result-including-evaluated-at-when-extra-data-supplied
-  (let [before (t/- (t/now) (t/new-duration 1 :seconds))
+  (let [before (t/<< (t/now) (t/new-duration 1 :seconds))
         result (results/healthy {:thing-1 "one" :thing-2 "two"})
-        after (t/+ (t/now) (t/new-duration 1 :seconds))]
+        after (t/>> (t/now) (t/new-duration 1 :seconds))]
     (is (t/> after (:salutem/evaluated-at result) before))))
 
 (deftest status-returns-result-status
@@ -66,7 +66,7 @@
                   (result-cb (results/healthy))))
         result (results/healthy
                  {:salutem/evaluated-at
-                  (t/- (t/now) (t/new-duration 60 :seconds))})]
+                  (t/<< (t/now) (t/new-duration 60 :seconds))})]
     (is (true? (results/outdated? result check)))))
 
 (deftest is-outdated-if-evaluated-at-older-than-now-minus-time-to-re-evaluation
@@ -76,7 +76,7 @@
                 {:salutem/time-to-re-evaluation (time/duration 30 :seconds)})
         result (results/healthy
                  {:salutem/evaluated-at
-                  (t/- (t/now) (t/new-duration 60 :seconds))})]
+                  (t/<< (t/now) (t/new-duration 60 :seconds))})]
     (is (true? (results/outdated? result check)))))
 
 (deftest
@@ -87,31 +87,31 @@
                 {:salutem/time-to-re-evaluation (time/duration 60 :seconds)})
         result (results/healthy
                  {:salutem/evaluated-at
-                  (t/- (t/now) (t/new-duration 30 :seconds))})]
+                  (t/<< (t/now) (t/new-duration 30 :seconds))})]
     (is (false? (results/outdated? result check)))))
 
 (deftest
   is-outdated-relative-to-provided-instant-when-older-than-time-to-re-evaluation
-  (let [relative-to-instant (t/- (t/now) (t/new-duration 2 :minutes))
+  (let [relative-to-instant (t/<< (t/now) (t/new-duration 2 :minutes))
         check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
                 {:salutem/time-to-re-evaluation (time/duration 30 :seconds)})
         result (results/healthy
                  {:salutem/evaluated-at
-                  (t/- (t/now) (t/new-duration 151 :seconds))})]
+                  (t/<< (t/now) (t/new-duration 151 :seconds))})]
     (is (true? (results/outdated? result check relative-to-instant)))))
 
 (deftest
   is-not-outdated-relative-to-instant-when-newer-than-time-to-re-evaluation
-  (let [relative-to-instant (t/- (t/now) (t/new-duration 2 :minutes))
+  (let [relative-to-instant (t/<< (t/now) (t/new-duration 2 :minutes))
         check (checks/background-check :thing
                 (fn [_ result-cb]
                   (result-cb (results/healthy)))
                 {:salutem/time-to-re-evaluation (time/duration 30 :seconds)})
         result (results/healthy
                  {:salutem/evaluated-at
-                  (t/- (t/now) (t/new-duration 149 :seconds))})]
+                  (t/<< (t/now) (t/new-duration 149 :seconds))})]
     (is (false? (results/outdated? result check relative-to-instant)))))
 
 (deftest treats-a-nil-result-as-outdated

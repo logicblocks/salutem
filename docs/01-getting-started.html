@@ -112,7 +112,7 @@
 </code></pre>
 <p>Results keep track of the instant at which evaluation occurred. By default, this is the instant at which the result was created. To set a specific instant for when evaluation occurred:</p>
 <pre><code class="clojure">(require '[salutem.core :as salutem])
-(require '[tick.alpha.api :as time])
+(require '[tick.core :as time])
 
 (salutem/healthy
   {:salutem/evaluated-at (time/- (time/now) (time/new-duration 20 :minutes))})
@@ -349,7 +349,7 @@
 <h3><a href="#querying-a-registry" name="querying-a-registry"></a>Querying a registry</h3>
 <p>Let’s say we have the following registry:</p>
 <pre><code class="clojure">(require '[salutem.core :as salutem])
-(require '[tick.alpha.api :as time])
+(require '[tick.core :as time])
 
 (def user-profile-service-check-name :services/user-profile)
 (def search-service-check-name :services/search)
@@ -405,7 +405,7 @@
 <p>Resolving a check in a registry is the act of obtaining a result for that check. However, it doesn’t necessarily mean that the check will be evaluated. Instead, depending on the type of the check, it may resolve to a cached result instead of triggering evaluation.</p>
 <p>First, let’s define a registry:</p>
 <pre><code class="clojure">(require '[salutem.core :as salutem])
-(require '[tick.alpha.api :as time])
+(require '[tick.core :as time])
 
 (def user-profile-service-check-name :services/user-profile)
 (def search-service-check-name :services/search)

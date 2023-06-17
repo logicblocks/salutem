@@ -7,7 +7,7 @@
    [next.jdbc :as jdbc]
    [next.jdbc.result-set :as jdbc-rs]
 
-   [tick.alpha.api :as time]
+   [tick.core :as time]
 
    [cartus.core :as log]
    [cartus.null :as cn]

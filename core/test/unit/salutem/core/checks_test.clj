@@ -3,7 +3,7 @@
    [clojure.test :refer :all]
    [clojure.core.async :as async]
 
-   [tick.alpha.api :as t]
+   [tick.core :as t]
 
    [cartus.test :as cartus-test]
 

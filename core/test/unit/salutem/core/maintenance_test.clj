@@ -3,7 +3,7 @@
    [clojure.test :refer :all]
    [clojure.core.async :as async]
 
-   [tick.alpha.api :as t]
+   [tick.core :as t]
 
    [cartus.test :as cartus-test]
    [cartus.null :as cartus-null]
@@ -14,8 +14,7 @@
    [salutem.core.maintenance :as maintenance]
    [salutem.core.registry :as registry]
 
-   [salutem.test.support.async :as tsa]
-   [salutem.test.support.time :as tst]))
+   [salutem.test.support.async :as tsa]))
 
 (deftest maintainer-logs-event-on-start
   (let [logger (cartus-test/logger)
@@ -200,7 +199,7 @@
           {:salutem/time-to-re-evaluation (time/duration 30 :seconds)})
         outdated-result
         (results/healthy
-          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
+          {:salutem/evaluated-at (t/<< (t/now) (t/new-duration 35 :seconds))})
 
         registry
         (-> (registry/empty-registry)
@@ -249,13 +248,13 @@
 
         check-1-outdated-result
         (results/healthy
-          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
+          {:salutem/evaluated-at (t/<< (t/now) (t/new-duration 35 :seconds))})
         check-2-current-result
         (results/healthy
-          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 40 :seconds))})
+          {:salutem/evaluated-at (t/<< (t/now) (t/new-duration 40 :seconds))})
         check-3-outdated-result
         (results/healthy
-          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 55 :seconds))})
+          {:salutem/evaluated-at (t/<< (t/now) (t/new-duration 55 :seconds))})
 
         registry
         (-> (registry/empty-registry)
@@ -307,13 +306,13 @@
 
         check-1-outdated-result
         (results/healthy
-          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
+          {:salutem/evaluated-at (t/<< (t/now) (t/new-duration 35 :seconds))})
         check-2-current-result
         (results/healthy
-          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 40 :seconds))})
+          {:salutem/evaluated-at (t/<< (t/now) (t/new-duration 40 :seconds))})
         check-3-outdated-result
         (results/healthy
-          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 55 :seconds))})
+          {:salutem/evaluated-at (t/<< (t/now) (t/new-duration 55 :seconds))})
 
         registry
         (-> (registry/empty-registry)
@@ -359,7 +358,7 @@
           {:salutem/time-to-re-evaluation (time/duration 30 :seconds)})
         outdated-result
         (results/healthy
-          {:salutem/evaluated-at (t/- (t/now) (t/new-duration 35 :seconds))})
+          {:salutem/evaluated-at (t/<< (t/now) (t/new-duration 35 :seconds))})
 
         registry
         (-> (registry/empty-registry)

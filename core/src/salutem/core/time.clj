@@ -2,7 +2,7 @@
   "Provides time utilities for use in check definitions and the maintenance
    pipeline."
   (:require
-   [tick.alpha.api :as t]))
+   [tick.core :as t]))
 
 (defn duration
   "Constructs an object representing a duration of time.
