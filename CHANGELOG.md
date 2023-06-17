@@ -10,17 +10,21 @@ to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- Add further documentation on included check function modules.
-- Add function to retrieve check name from check.
-- Add function to retrieve result status from result.
+- Further documentation on included check function modules.
+- A function to retrieve check name from check.
+- A function to retrieve result status from result.
+
+## Changed
+
+- Upgrade to latest versions of all dependencies.
 
 ## [0.1.7] — 2021-10-30
 
 ### Added
 
-- Add data source check function module.
-- Add HTTP endpoint check function module.
-- Publish an aggregate jar of all module jars as `io.logicblocks/salutem`.
+- A data source check function module.
+- An HTTP endpoint check function module.
+- Publishing of an aggregate jar of all module jars as `io.logicblocks/salutem`.
 
 ### Fixed
 
@@ -40,11 +44,11 @@ to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- Add asynchronous variant of resolve-check.
-- Add asynchronous version of resolve-checks.
+- An asynchronous variant of resolve-check.
+- An asynchronous version of resolve-checks.
 - Include evaluation duration in results.
-- Add documentation for checks/attempt.
-- Add documentation to maintenance processes.
+- Documentation for checks/attempt.
+- Documentation to maintenance processes.
 
 ### Changed
 
@@ -65,7 +69,7 @@ to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 - Create first pass of Getting Started guide.
 - Allow asynchronous evaluation of checks.
-- Add tests for salutem.checks/attempt.
+- Tests for salutem.checks/attempt.
 - Catch exceptions from check functions and convert to unhealthy result.
 - Ensure only one evaluation of each check takes place at a time in maintenance
   pipeline.
