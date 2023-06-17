@@ -1,4 +1,4 @@
-(defproject io.logicblocks/salutem "0.1.8-RC4"
+(defproject io.logicblocks/salutem "0.1.8-RC5"
   :description "Aggregate project for all salutem modules."
 
   :parent-project {:path    "parent/project.clj"
