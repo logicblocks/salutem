@@ -90,7 +90,7 @@ Add the following to your `project.clj` file:
 
 ## License
 
-Copyright &copy; 2021 LogicBlocks Maintainers
+Copyright &copy; 2023 LogicBlocks Maintainers
 
-Distributed under the terms of the
+Distributed under the terms of the 
 [MIT License](http://opensource.org/licenses/MIT).
