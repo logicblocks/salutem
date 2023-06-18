@@ -8,6 +8,8 @@ to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.8] — 2023-06-18
+
 ### Added
 
 - Further documentation on included check function modules.
@@ -115,4 +117,5 @@ Released without _CHANGELOG.md_.
 
 [0.1.7]: https://github.com/logicblocks/salutem/compare/0.1.6...0.1.7
 
-[Unreleased]: https://github.com/logicblocks/salutem/compare/0.1.7...HEAD
+[0.1.8]: https://github.com/logicblocks/salutem/compare/0.1.7...0.1.8
+[Unreleased]: https://github.com/logicblocks/salutem/compare/0.1.8...HEAD

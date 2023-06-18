@@ -23,7 +23,7 @@ A system for defining and maintaining a collection of health checks.
 Add the following to your `project.clj` file:
 
 ```clojure
-[io.logicblocks/salutem.core "0.1.7"]
+[io.logicblocks/salutem.core "0.1.8"]
 ```
 
 ## Documentation

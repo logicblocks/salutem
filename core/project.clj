@@ -1,4 +1,4 @@
-(defproject io.logicblocks/salutem.core "0.1.8-RC6"
+(defproject io.logicblocks/salutem.core "0.1.8"
   :description "A health check library for sync / async health checks."
 
   :parent-project {:path    "../parent/project.clj"

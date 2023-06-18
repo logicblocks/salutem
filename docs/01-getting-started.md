@@ -50,7 +50,7 @@ order to get started, you need only install `salutem.core`. To do so, add the
 following to your `project.clj` file:
 
 ```clojure
-[io.logicblocks/salutem.core "0.1.7"]
+[io.logicblocks/salutem.core "0.1.8"]
 ```
 
 See [Check Functions](02-check-functions.md) for details on installing the check

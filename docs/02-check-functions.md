@@ -50,7 +50,7 @@ To install the check function module, add the following to your `project.clj`
 file:
 
 ```clojure
-[io.logicblocks/salutem.check-fns.http-endpoint "0.1.7"]
+[io.logicblocks/salutem.check-fns.http-endpoint "0.1.8"]
 ```
 
 ### <span id="hecf-usage">Usage</span>
@@ -377,7 +377,7 @@ To install the check function module, add the following to your `project.clj`
 file:
 
 ```clojure
-[io.logicblocks/salutem.check-fns.data-source "0.1.7"]
+[io.logicblocks/salutem.check-fns.data-source "0.1.8"]
 ```
 
 ### <span id="dscf-usage">Usage</span>
