@@ -10,10 +10,11 @@
                              :deploy-repositories
                              :managed-dependencies]}
 
-  :plugins [[lein-changelog "0.3.2"]
-            [lein-codox "0.10.8"]
+  :plugins [[io.logicblocks/lein-interpolate "0.1.1-RC2"]
             [lein-parent "0.3.9"]
-            [lein-sub "0.3.0"]]
+            [lein-sub "0.3.0"]
+            [lein-changelog "0.3.2"]
+            [lein-codox "0.10.8"]]
 
   :sub ["parent"
         "core"
@@ -42,10 +43,10 @@
 
    :performance
    {:aliases {"eftest"
-               ["sub"
-                "-s" "core"
-                "with-profile" "performance"
-                "eftest"]}}
+              ["sub"
+               "-s" "core"
+               "with-profile" "performance"
+               "eftest"]}}
 
    :codox
    [:parent-shared

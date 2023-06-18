@@ -18,7 +18,8 @@
             [lein-cprint "1.3.3"]
             [lein-eftest "0.6.0"]
             [lein-kibit "0.1.8"]
-            [lein-shell "0.5.0"]]
+            [lein-shell "0.5.0"]
+            [fipp "0.6.26"]]
 
   :deploy-repositories
   {"releases"  {:url "https://repo.clojars.org" :creds :gpg}
