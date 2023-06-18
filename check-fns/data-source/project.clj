@@ -1,4 +1,4 @@
-(defproject io.logicblocks/salutem.check-fns.data-source "0.1.8"
+(defproject io.logicblocks/salutem.check-fns.data-source "0.1.9-RC1"
   :description "A data source check function for salutem."
 
   :parent-project {:path    "../../parent/project.clj"

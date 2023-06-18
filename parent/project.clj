@@ -1,4 +1,4 @@
-(defproject io.logicblocks/salutem.parent "0.1.8"
+(defproject io.logicblocks/salutem.parent "0.1.9-RC1"
   :scm {:dir  "."
         :name "git"
         :url  "https://github.com/logicblocks/salutem"}
