@@ -12,6 +12,6 @@ KEY_ID="$(gpg --list-keys --with-colons | \
   head -n 1 | \
   cut -d ':' -f 10)"
 
-git config --global user.email "circleci@infrablocks.io"
+git config --global user.email "circleci@logicblocks.io"
 git config --global user.name "Circle CI"
 git config --global user.signingkey "${KEY_ID}"
