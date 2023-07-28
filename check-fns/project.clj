@@ -1,4 +1,4 @@
-(defproject io.logicblocks/salutem.check-fns "0.1.9-RC1"
+(defproject io.logicblocks/salutem.check-fns "0.1.9-RC2"
   :description "A set of standard check functions for salutem."
 
   :parent-project {:path "../parent/project.clj"
