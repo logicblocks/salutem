@@ -231,7 +231,7 @@ namespace :database do
     RakeDocker.define_container_tasks(
       container_name: 'salutem-test-database'
     ) do |t|
-      t.image = 'postgres:11.5'
+      t.image = 'postgres:11.12'
       t.ports = ['5432:5432']
       t.environment = %w[
         POSTGRES_DB=test
