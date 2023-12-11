@@ -9,8 +9,8 @@
   {:name "The MIT License"
    :url  "https://opensource.org/licenses/MIT"}
 
-  :plugins [[io.logicblocks/lein-interpolate "0.1.1-RC2"]
-            [jonase/eastwood "1.4.0"]
+  :plugins [[io.logicblocks/lein-interpolate "0.1.1-RC3"]
+            [jonase/eastwood "1.4.2"]
             [lein-ancient "0.7.0"]
             [lein-bikeshed "0.5.2"]
             [lein-cljfmt "0.9.2"]
@@ -31,17 +31,17 @@
    [org.clojure/core.async "1.6.673"]
 
    [io.logicblocks/cartus.core "0.1.18"]
-   [io.logicblocks/cartus.null "0.1.18"]
    [io.logicblocks/cartus.test "0.1.18"]
+   [io.logicblocks/cartus.null "0.1.18"]
 
    [io.logicblocks/salutem.core :project/version]
    [io.logicblocks/salutem.check-fns :project/version]
    [io.logicblocks/salutem.check-fns.data-source :project/version]
    [io.logicblocks/salutem.check-fns.http-endpoint :project/version]
 
-   [tick "0.6.2"]
+   [tick "0.7.5"]
 
-   [nrepl "1.0.0"]
+   [nrepl "1.1.0"]
 
    [eftest "0.6.0"]
    [tortue/spy "2.14.0"]
@@ -51,7 +51,7 @@
    [org.jooq/jooq "3.15.3"]
    [com.impossibl.pgjdbc-ng/pgjdbc-ng "0.8.9"]
 
-   [com.github.seancorfield/next.jdbc "1.3.874"]
+   [com.github.seancorfield/next.jdbc "1.3.894"]
 
    [clj-http "3.12.3"]
 

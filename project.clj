@@ -10,7 +10,7 @@
                              :deploy-repositories
                              :managed-dependencies]}
 
-  :plugins [[io.logicblocks/lein-interpolate "0.1.1-RC2"]
+  :plugins [[io.logicblocks/lein-interpolate "0.1.1-RC3"]
             [lein-parent "0.3.9"]
             [lein-sub "0.3.0"]
             [lein-changelog "0.3.2"]

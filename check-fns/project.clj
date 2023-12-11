@@ -9,7 +9,7 @@
                              :deploy-repositories
                              :managed-dependencies]}
 
-  :plugins [[lein-parent "0.3.8"]]
+  :plugins [[lein-parent "0.3.9"]]
 
   :dependencies [[io.logicblocks/salutem.check-fns.data-source]
                  [io.logicblocks/salutem.check-fns.http-endpoint]]

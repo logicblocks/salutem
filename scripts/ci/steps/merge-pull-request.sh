@@ -9,4 +9,8 @@ PROJECT_DIR="$( cd "$SCRIPT_DIR/../../.." && pwd )"
 
 cd "$PROJECT_DIR"
 
-./go build:code:check library:initialise library:check
+git-crypt unlock
+
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+./go github:pull_requests:merge["$CURRENT_BRANCH","%s [skip ci]"]

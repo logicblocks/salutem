@@ -162,7 +162,6 @@ end
 namespace :pipeline do
   desc 'Prepare CircleCI Pipeline'
   task prepare: %i[
-    circle_ci:project:follow
     circle_ci:env_vars:ensure
     circle_ci:checkout_keys:ensure
     circle_ci:ssh_keys:ensure

@@ -1,27 +1,46 @@
-/target
-/**/target
-/classes
-/**/classes
-/checkouts
-/**/checkouts
+# vim
+*.swp
+*.swo
+
+# IntelliJ
+.idea/
+*.ipr
+*.iml
+*.iws
+
+# Build
+vendor/
+build/
+dist/
+target
+**/target
+classes
+**/classes
+checkouts
+**/checkouts
+run/
+.bundle
+.rakeTasks
+.direnv
+
+# OS
+.DS_Store
+
+# Clojure
 profiles.clj
+.eastwood
 pom.xml
 pom.xml.asc
 *.jar
 *.class
-/.lein-*
-/**/.lein-*
-/.nrepl-port
-/**/.nrepl-port
-.hgignore
-.bundle
-.hg/
-*.iml
-*.iws
-*.ipr
-.DS_Store
-/run
-/vendor
-.eastwood
-/.idea
+.lein-*/
+.lein-failures
 lsp/
+.nrepl-port
+
+# Temporary
+run/pids/
+run/logs/
+*.log
+.tmp
+

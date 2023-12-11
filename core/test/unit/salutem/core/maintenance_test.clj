@@ -27,7 +27,8 @@
 
         trigger-channel (async/chan 10)
         maintainer (maintenance/maintainer dependencies
-                     registry-store context interval trigger-channel)]
+                     registry-store context interval trigger-channel)
+        logs (cartus-test/events logger)]
     (is (logged? logger
           {:context {:interval #time/duration "PT0.05S"}
            :level   :info
@@ -80,7 +81,7 @@
         registry-store (atom registry)
 
         trigger-channel (async/chan 10)
-        maintainer (t/with-clock (t/clock "2020-07-23T21:41:12.283Z")
+        maintainer (t/with-clock (t/zoned-date-time "2020-07-23T21:41:12.283Z")
                      (maintenance/maintainer dependencies
                        registry-store context interval trigger-channel))]
 
@@ -128,7 +129,7 @@
         registry-store (atom registry)
 
         trigger-channel (async/chan 10)
-        maintainer (t/with-clock (t/clock "2020-07-23T21:41:12.283Z")
+        maintainer (t/with-clock (t/zoned-date-time "2020-07-23T21:41:12.283Z")
                      (maintenance/maintainer dependencies
                        registry-store context interval trigger-channel))]
 
@@ -168,7 +169,7 @@
 
         trigger-channel (async/chan)
         evaluation-channel (async/chan)]
-    (t/with-clock (t/clock "2020-07-23T21:41:12.283Z")
+    (t/with-clock (t/zoned-date-time "2020-07-23T21:41:12.283Z")
       (maintenance/refresher dependencies
         trigger-channel evaluation-channel))
 

@@ -1,77 +1,180 @@
 version: 2.1
+
+orbs:
+  slack: circleci/slack@4.8.3
+
+ruby_container: &ruby_container
+  image: ruby:3.1.1
+
+postgres_container: &postgres_container
+  image: cimg/postgres:11.5
+  environment:
+    POSTGRES_DB: test
+    POSTGRES_PASSWORD: test-password
+    POSTGRES_USER: tester
+
+build_containers: &build_containers
+  resource_class: medium
+  docker:
+    - <<: *ruby_container
+
+test_containers: &test_containers
+  resource_class: medium
+  docker:
+    - <<: *ruby_container
+    - <<: *postgres_container
+
+slack_context: &slack_context
+  context:
+    - slack
+
+only_main: &only_main
+  filters:
+    branches:
+      only:
+        - main
+
+only_dependabot: &only_dependabot
+  filters:
+    branches:
+      only:
+        - /^dependabot.*/
+
+only_main_and_dependabot: &only_main_and_dependabot
+  filters:
+    branches:
+      only:
+        - main
+        - /^dependabot.*/
+
+commands:
+  notify:
+    steps:
+      - when:
+          condition:
+            matches:
+              pattern: "^dependabot.*"
+              value: << pipeline.git.branch >>
+          steps:
+            - slack/notify:
+                event: fail
+                channel: builds-dependabot
+                template: SLACK_FAILURE_NOTIFICATION
+            - slack/notify:
+                event: pass
+                channel: builds-dependabot
+                template: SLACK_SUCCESS_NOTIFICATION
+      - when:
+          condition:
+            matches:
+              pattern: "^(?!dependabot).*"
+              value: << pipeline.git.branch >>
+          steps:
+            - slack/notify:
+                event: fail
+                channel: dev
+                template: SLACK_FAILURE_NOTIFICATION
+            - slack/notify:
+                event: pass
+                channel: builds
+                template: SLACK_SUCCESS_NOTIFICATION
+  configure_build_tools:
+    steps:
+      - run: ./scripts/ci/common/install-openjdk.sh
+  configure_secrets_tools:
+    steps:
+      - run: ./scripts/ci/common/upgrade-gpg.sh
+      - run: ./scripts/ci/common/install-git-crypt.sh
+      - run: ./scripts/ci/common/install-gpg-key.sh
+  configure_release_tools:
+    steps:
+      - run: ./scripts/ci/common/configure-git.sh
+      - run: ./scripts/ci/common/configure-clojars.sh
+
 jobs:
   build:
-    working_directory: ~/source
-    docker:
-      - image: ruby:3.1.1
+    <<: *build_containers
     steps:
       - checkout
-      - run: ./scripts/ci/common/install-openjdk.sh
+      - configure_build_tools
       - run: ./scripts/ci/steps/build.sh
+      - notify
+
   test:
+    <<: *test_containers
     working_directory: ~/source
-    docker:
-      - image: ruby:3.1.1
-      - image: circleci/postgres:11.5-alpine
-        environment:
-          POSTGRES_DB: test
-          POSTGRES_PASSWORD: test-password
-          POSTGRES_USER: tester
     steps:
       - checkout
-      - run: ./scripts/ci/common/install-openjdk.sh
+      - configure_build_tools
       - run: ./scripts/ci/steps/test.sh
+      - notify
+
   prerelease:
-    working_directory: ~/source
-    docker:
-      - image: ruby:3.1.1
+    <<: *build_containers
     steps:
       - checkout
-      - run: ./scripts/ci/common/install-openjdk.sh
-      - run: ./scripts/ci/common/upgrade-gpg.sh
-      - run: ./scripts/ci/common/install-git-crypt.sh
-      - run: ./scripts/ci/common/install-gpg-key.sh
-      - run: ./scripts/ci/common/configure-git.sh
-      - run: ./scripts/ci/common/configure-clojars.sh
+      - configure_build_tools
+      - configure_secrets_tools
+      - configure_release_tools
       - run: ./scripts/ci/steps/prerelease.sh
+      - notify
+
   release:
-    working_directory: ~/source
-    docker:
-      - image: ruby:3.1.1
+    <<: *build_containers
     steps:
       - checkout
-      - run: ./scripts/ci/common/install-openjdk.sh
-      - run: ./scripts/ci/common/upgrade-gpg.sh
-      - run: ./scripts/ci/common/install-git-crypt.sh
-      - run: ./scripts/ci/common/install-gpg-key.sh
-      - run: ./scripts/ci/common/configure-git.sh
-      - run: ./scripts/ci/common/configure-clojars.sh
+      - configure_build_tools
+      - configure_secrets_tools
+      - configure_release_tools
       - run: ./scripts/ci/steps/release.sh
+      - notify
+
+  merge_pull_request:
+    <<: *build_containers
+    steps:
+      - checkout
+      - configure_build_tools
+      - configure_secrets_tools
+      - run: ./scripts/ci/steps/merge-pull-request.sh
+      - notify
 
 workflows:
   version: 2
   pipeline:
     jobs:
-      - build
+      - build:
+          <<: *only_main_and_dependabot
+          <<: *slack_context
       - test:
+          <<: *only_main_and_dependabot
+          <<: *slack_context
           requires:
             - build
-      - prerelease:
+      - merge_pull_request:
+          <<: *only_dependabot
+          <<: *slack_context
           requires:
             - test
-          filters:
-            branches:
-              only: main
+      - prerelease:
+          <<: *only_main
+          <<: *slack_context
+          requires:
+            - test
+      - slack/on-hold:
+          <<: *only_main
+          <<: *slack_context
+          requires:
+            - prerelease
+          channel: release
+          template: SLACK_ON_HOLD_NOTIFICATION
       - hold:
+          <<: *only_main
           type: approval
           requires:
             - prerelease
-          filters:
-            branches:
-              only: main
+            - slack/on-hold
       - release:
+          <<: *only_main
+          <<: *slack_context
           requires:
             - hold
-          filters:
-            branches:
-              only: main
