@@ -1,4 +1,4 @@
-(defproject io.logicblocks/salutem.check-fns.http-endpoint "0.1.9-RC2"
+(defproject io.logicblocks/salutem.check-fns.http-endpoint "0.1.9-RC3"
   :description "An HTTP endpoint check function for salutem."
 
   :parent-project {:path    "../../parent/project.clj"
