@@ -134,8 +134,8 @@ GEM
       sshkey (~> 2.0)
     rchardet (1.8.0)
     regexp_parser (2.9.2)
-    rexml (3.2.8)
-      strscan (>= 3.0.9)
+    rexml (3.3.3)
+      strscan
     rubocop (1.64.1)
       json (~> 2.3)
       language_server-protocol (>= 3.17.0)
