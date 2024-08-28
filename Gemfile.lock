@@ -16,16 +16,16 @@ GEM
       public_suffix (>= 2.0.2, < 6.0)
     ast (2.4.2)
     aws-eventstream (1.3.0)
-    aws-partitions (1.864.0)
-    aws-sdk-core (3.190.0)
+    aws-partitions (1.968.0)
+    aws-sdk-core (3.202.0)
       aws-eventstream (~> 1, >= 1.3.0)
       aws-partitions (~> 1, >= 1.651.0)
-      aws-sigv4 (~> 1.8)
+      aws-sigv4 (~> 1.9)
       jmespath (~> 1, >= 1.6.1)
-    aws-sdk-ecr (1.68.0)
-      aws-sdk-core (~> 3, >= 3.188.0)
-      aws-sigv4 (~> 1.1)
-    aws-sigv4 (1.8.0)
+    aws-sdk-ecr (1.80.0)
+      aws-sdk-core (~> 3, >= 3.201.0)
+      aws-sigv4 (~> 1.5)
+    aws-sigv4 (1.9.1)
       aws-eventstream (~> 1, >= 1.0.2)
     base64 (0.2.0)
     bigdecimal (3.1.8)
@@ -38,8 +38,8 @@ GEM
       shikashi (~> 0.6)
       vault (~> 0.17)
     connection_pool (2.4.1)
-    docker-api (2.2.0)
-      excon (>= 0.47.0)
+    docker-api (2.3.0)
+      excon (>= 0.64.0)
       multi_json
     down (5.4.1)
       addressable (~> 2.8)
@@ -47,7 +47,7 @@ GEM
     evalhook (0.6.0)
       partialruby (~> 0.3)
       sexp_processor (~> 4.0)
-    excon (0.105.0)
+    excon (0.111.0)
     faraday (2.7.12)
       base64
       faraday-net_http (>= 2.0, < 3.1)
@@ -100,11 +100,11 @@ GEM
       minitar (~> 0.9)
       rake_factory (~> 0.33)
       rubyzip (>= 1.3)
-    rake_docker (2.20.0.pre.7)
+    rake_docker (2.22.0.pre.3)
       aws-sdk-ecr (~> 1.2)
       colored2 (~> 3.1)
-      docker-api (>= 1.34, < 3.0)
-      rake_factory (~> 0.23)
+      docker-api (>= 2.3, < 3.0)
+      rake_factory (~> 0.33)
     rake_factory (0.34.0.pre.2)
       activesupport (>= 4)
       rake (~> 13.0)
@@ -198,7 +198,7 @@ DEPENDENCIES
   confidante
   rake
   rake_circle_ci
-  rake_docker (~> 2.20.0.pre.3)
+  rake_docker (~> 2.22.0.pre.3)
   rake_git
   rake_git_crypt
   rake_github
